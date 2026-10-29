@@ -30,6 +30,10 @@ android {
         }
     }
 
+    // Name and icon differ per build type so the two installs are telling apart on the DHU.
+    defaultConfig.manifestPlaceholders["appIcon"] = "@android:drawable/ic_menu_compass"
+    defaultConfig.resValue("string", "app_name", "Zeekr Probe")
+
     buildTypes {
         release {
             isMinifyEnabled = false
@@ -44,6 +48,8 @@ android {
                 applicationIdSuffix = ".sys"
                 signingConfig = signingConfigs.getByName("platform")
                 matchingFallbacks += listOf("debug")
+                manifestPlaceholders["appIcon"] = "@android:drawable/ic_lock_lock"
+                resValue("string", "app_name", "Zeekr Probe SYS")
             }
         }
     }

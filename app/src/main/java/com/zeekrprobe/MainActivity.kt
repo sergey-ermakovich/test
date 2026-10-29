@@ -157,6 +157,15 @@ class MainActivity : Activity() {
             setPadding(0, dp(8), 0, dp(8))
             text = "…"
         }
+        // Big banner so the two installs can't be confused on the car screen.
+        val banner = TextView(this).apply {
+            val sys = packageName.endsWith(".sys")
+            text = if (sys) "ZEEKR PROBE SYS — платформенная подпись" else "ZEEKR PROBE — обычная подпись"
+            setTextColor(if (sys) Color.rgb(255, 170, 60) else Color.rgb(120, 180, 255))
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f * textScale)
+            typeface = Typeface.DEFAULT_BOLD
+        }
+        root.addView(banner)
         root.addView(live)
 
         report = TextView(this).apply {
