@@ -44,6 +44,7 @@ class MainActivity : Activity() {
     private lateinit var live: TextView
     private lateinit var report: TextView
     private lateinit var car: CarProbe
+    private lateinit var ecarx: EcarxProbe
     private val io = Executors.newSingleThreadExecutor()
     private val ui = Handler(Looper.getMainLooper())
 
@@ -88,6 +89,7 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         car = CarProbe(this)
+        ecarx = EcarxProbe(this)
         setContentView(buildUi())
         requestMissingPermissions()
         refreshReport()
@@ -173,6 +175,24 @@ class MainActivity : Activity() {
 
     private fun buildLive(): String {
         val sb = StringBuilder()
+        // ECARX AdaptAPI is the path that actually works on Zeekr without permissions.
+        if (ecarx.libraryPresent && ecarx.connect()) {
+            val kmh = ecarx.speedKmh()
+            val odo = ecarx.odometerKm()
+            val soc = ecarx.socPercent()
+            val range = ecarx.rangeKm()
+            val out = ecarx.outsideC()
+            val kw = ecarx.chargeKw()
+            sb.append("ECARX скорость ").append(kmh?.let { "%.1f км/ч".format(it) } ?: "—")
+                .append("   одометр ").append(odo?.let { "%.1f км".format(it) } ?: "—")
+                .append("   передача ").append(ecarx.gear() ?: "—").append('\n')
+            sb.append("      батарея ").append(soc?.let { "%.1f%%".format(it) } ?: "—")
+                .append("   запас ").append(range?.let { "%.0f км".format(it) } ?: "—")
+                .append("   улица ").append(out?.let { "%.1f °C".format(it) } ?: "—")
+                .append("   зарядка ").append(kw?.let { "%.1f кВт".format(it) } ?: "нет").append('\n')
+        } else {
+            sb.append("ECARX ").append(if (ecarx.libraryPresent) ecarx.connectError ?: "не подключился" else "AdaptAPI отсутствует").append('\n')
+        }
         if (car.libraryPresent) {
             val speedMs = car.readFloat(0x11600207)
             val odoKm = car.readFloat(0x11600204)
@@ -230,6 +250,7 @@ class MainActivity : Activity() {
         sb.append("Zeekr Probe ").append(stamp).append("\n\n")
         section(sb, "УСТРОЙСТВО") { deviceInfo() }
         section(sb, "РАЗРЕШЕНИЯ") { permissionsInfo() }
+        section(sb, "ECARX ADAPTAPI (com.ecarx.xui.adaptapi)") { ecarx.dump() }
         section(sb, "CAR SERVICE (android.car)") { car.dumpAll() }
         section(sb, "СИСТЕМНЫЕ БИБЛИОТЕКИ") { sharedLibraries() }
         section(sb, "ПАКЕТЫ ПРОИЗВОДИТЕЛЯ") { oemPackages() }

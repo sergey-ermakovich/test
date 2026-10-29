@@ -26,6 +26,12 @@
 * Кнопки: **Обновить**, **Разрешения** (повторный запрос), **Сохранить**
   (в Downloads и в папку приложения), **Поделиться**.
 
-Главное, что нужно от отчёта: секция `CAR SERVICE`. Если там
+Главное, что нужно от отчёта: секции `ECARX ADAPTAPI` и `CAR SERVICE`.
+ECARX AdaptAPI (`com.ecarx.xui.adaptapi.car.Car`) — это путь, которым данные
+машины реально читаются на Zeekr без разрешений (так делают открытые проекты
+[zeekr-shortcut-car](https://github.com/dts88/zeekr-shortcut-car) и
+[zee-power-toys](https://github.com/maxim-saplin/zee-power-toys)).
+Стандартный `android.car` на Zeekr обычно закрыт или отдаёт замороженные значения.
+В секции `CAR SERVICE`: Если там
 `SecurityException` — свойство существует, но закрыто; если
 `IllegalArgumentException` — такого свойства у машины нет.
