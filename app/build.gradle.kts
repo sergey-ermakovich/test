@@ -15,11 +15,36 @@ android {
         versionName = "0.1"
     }
 
+    // Optional: the public AOSP platform test key (platform.pk8 from AOSP, alias
+    // "platformkey", password "android"). Zeekr OS userdebug builds are signed with it,
+    // so an APK signed the same way gets signature-level permissions such as
+    // android.car.permission.*. Drop it at tools/platform-key/androiddebugkey.jks to
+    // enable the extra "platform" build; nothing happens when the file is absent.
+    val platformKey = rootProject.file("tools/platform-key/androiddebugkey.jks")
+    if (platformKey.exists()) {
+        signingConfigs.create("platform") {
+            storeFile = platformKey
+            storePassword = "android"
+            keyAlias = "platformkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
             // Debug key on purpose: this is a throwaway probe, easier to sideload.
             signingConfig = signingConfigs.getByName("debug")
+        }
+        // Same app, platform-signed, separate package so both can be installed side by side
+        // and their reports compared. Only exists when the key is present.
+        if (platformKey.exists()) {
+            create("platform") {
+                initWith(getByName("debug"))
+                applicationIdSuffix = ".sys"
+                signingConfig = signingConfigs.getByName("platform")
+                matchingFallbacks += listOf("debug")
+            }
         }
     }
 

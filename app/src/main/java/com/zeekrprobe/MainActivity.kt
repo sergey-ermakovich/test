@@ -125,6 +125,11 @@ class MainActivity : Activity() {
 
     // ---------------------------------------------------------------- UI
 
+    // Zeekr's DHU is 2560 px wide but reports ~160 dpi, so 1 sp ≈ 1 px and normal text
+    // is unreadable from the driver's seat. Scale up on anything that wide.
+    private val textScale: Float
+        get() = if (resources.configuration.smallestScreenWidthDp >= 900) 2.2f else 1f
+
     private fun buildUi(): View {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -135,7 +140,7 @@ class MainActivity : Activity() {
         val buttons = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         fun button(label: String, onClick: () -> Unit) = Button(this).apply {
             text = label
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f * textScale)
             setOnClickListener { onClick() }
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         }
@@ -148,7 +153,7 @@ class MainActivity : Activity() {
         live = TextView(this).apply {
             typeface = Typeface.MONOSPACE
             setTextColor(Color.rgb(120, 255, 160))
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f * textScale)
             setPadding(0, dp(8), 0, dp(8))
             text = "…"
         }
@@ -157,7 +162,7 @@ class MainActivity : Activity() {
         report = TextView(this).apply {
             typeface = Typeface.MONOSPACE
             setTextColor(Color.rgb(220, 220, 220))
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f * textScale)
             setTextIsSelectable(true)
             text = "Собираю отчёт…"
         }
@@ -247,7 +252,8 @@ class MainActivity : Activity() {
     private fun buildReport(): String {
         val sb = StringBuilder()
         val stamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())
-        sb.append("Zeekr Probe ").append(stamp).append("\n\n")
+        sb.append("Zeekr Probe ").append(stamp).append("  пакет ").append(packageName)
+            .append(if (packageName.endsWith(".sys")) " (подпись платформы AOSP)" else " (debug-подпись)").append("\n\n")
         section(sb, "УСТРОЙСТВО") { deviceInfo() }
         section(sb, "РАЗРЕШЕНИЯ") { permissionsInfo() }
         section(sb, "ECARX ADAPTAPI (com.ecarx.xui.adaptapi)") { ecarx.dump() }

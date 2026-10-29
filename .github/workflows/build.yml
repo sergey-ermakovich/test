@@ -24,11 +24,16 @@ jobs:
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0" "platform-tools"
 
-      - name: Build debug APK
-        run: ./gradlew assembleDebug --no-daemon --stacktrace
-
-      - name: Rename APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk ZeekrProbe-${{ github.run_number }}.apk
+      # The platform-signed variant is built only when tools/platform-key/ is present.
+      - name: Build APKs
+        run: |
+          if [ -f tools/platform-key/androiddebugkey.jks ]; then
+            ./gradlew assembleDebug assemblePlatform --no-daemon --stacktrace
+            cp app/build/outputs/apk/platform/app-platform.apk ZeekrProbe-${{ github.run_number }}-platform.apk
+          else
+            ./gradlew assembleDebug --no-daemon --stacktrace
+          fi
+          cp app/build/outputs/apk/debug/app-debug.apk ZeekrProbe-${{ github.run_number }}.apk
 
       - uses: actions/upload-artifact@v4
         with:
@@ -41,5 +46,10 @@ jobs:
         with:
           tag_name: probe-${{ github.run_number }}
           name: Zeekr Probe build ${{ github.run_number }}
-          body: "Тестовый APK для проверки, что ставится на ГУ и какие данные машины доступны."
+          body: |
+            Тестовый APK для проверки, что ставится на ГУ и какие данные машины доступны.
+
+            * `ZeekrProbe-N.apk` — обычная debug-подпись, пакет `com.zeekrprobe`.
+            * `ZeekrProbe-N-platform.apk` (если есть) — подпись платформенным ключом AOSP, пакет `com.zeekrprobe.sys`.
+              Если прошивка на тестовых ключах, этот вариант получит системные разрешения.
           files: ZeekrProbe-*.apk
