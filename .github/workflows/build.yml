@@ -1,0 +1,41 @@
+name: Build APK
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Build debug APK
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Rename APK
+        run: cp app/build/outputs/apk/debug/app-debug.apk ZeekrProbe-${{ github.run_number }}.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ZeekrProbe-apk
+          path: ZeekrProbe-*.apk
+
+      # A GitHub Release gives a plain https link to the APK, which can be opened
+      # straight from the head unit's browser without logging in.
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: probe-${{ github.run_number }}
+          name: Zeekr Probe build ${{ github.run_number }}
+          body: "Тестовый APK для проверки, что ставится на ГУ и какие данные машины доступны."
+          files: ZeekrProbe-*.apk
