@@ -264,6 +264,7 @@ class MainActivity : Activity() {
         sb.append("Zeekr Probe ").append(stamp).append("  пакет ").append(packageName)
             .append(if (packageName.endsWith(".sys")) " (подпись платформы AOSP)" else " (debug-подпись)").append("\n\n")
         section(sb, "УСТРОЙСТВО") { deviceInfo() }
+        section(sb, "ADB / РЕЖИМ РАЗРАБОТЧИКА") { adbInfo() }
         section(sb, "РАЗРЕШЕНИЯ") { permissionsInfo() }
         section(sb, "ECARX ADAPTAPI (com.ecarx.xui.adaptapi)") { ecarx.dump() }
         section(sb, "CAR SERVICE (android.car)") { car.dumpAll() }
@@ -313,6 +314,90 @@ class MainActivity : Activity() {
             .append("  wifi: ").append(pm.hasSystemFeature(PackageManager.FEATURE_WIFI)).append('\n')
         b.append("Класс android.car найден: ").append(car.libraryPresent).append('\n')
         b.append("Locale: ").append(Locale.getDefault()).append("  TZ: ").append(java.util.TimeZone.getDefault().id).append('\n')
+        return b.toString()
+    }
+
+    /** Reads a system property through the hidden SystemProperties API, falling back to getprop. */
+    private fun sysProp(key: String): String {
+        try {
+            val cls = Class.forName("android.os.SystemProperties")
+            val v = cls.getMethod("get", String::class.java).invoke(null, key) as String
+            if (v.isNotEmpty()) return v
+        } catch (_: Throwable) {
+        }
+        return try {
+            val proc = Runtime.getRuntime().exec(arrayOf("getprop", key))
+            BufferedReader(InputStreamReader(proc.inputStream)).readLine()?.trim() ?: ""
+        } catch (_: Throwable) {
+            ""
+        }
+    }
+
+    private fun globalSetting(name: String): String = try {
+        android.provider.Settings.Global.getString(contentResolver, name) ?: "null"
+    } catch (t: Throwable) {
+        CarProbe.describe(t)
+    }
+
+    private fun portOpen(port: Int): Boolean = try {
+        java.net.Socket().use { it.connect(java.net.InetSocketAddress("127.0.0.1", port), 400); true }
+    } catch (_: Throwable) {
+        false
+    }
+
+    private fun adbInfo(): String {
+        val b = StringBuilder()
+        val adbEnabled = globalSetting("adb_enabled")
+        val devSettings = globalSetting("development_settings_enabled")
+        val adbWifi = globalSetting("adb_wifi_enabled")
+        val usbConfig = sysProp("sys.usb.config")
+        val usbState = sysProp("sys.usb.state")
+        val persistUsb = sysProp("persist.sys.usb.config")
+        val tcpPort = sysProp("service.adb.tcp.port").ifEmpty { sysProp("persist.adb.tcp.port") }
+        val adbd = sysProp("init.svc.adbd")
+        val secure = sysProp("ro.adb.secure")
+        val debuggable = sysProp("ro.debuggable")
+        val buildType = sysProp("ro.build.type")
+        val port5555 = portOpen(5555)
+
+        // Verdict first, raw values below.
+        val usbAdb = adbEnabled == "1" && usbConfig.contains("adb")
+        b.append("ВЫВОД: ")
+        when {
+            usbAdb -> b.append("ADB по USB ВКЛЮЧЁН (adb_enabled=1, в USB-конфиге есть adb) — кабель папа-папа будет работать\n")
+            adbEnabled == "1" -> b.append("отладка включена (adb_enabled=1), но USB сейчас в режиме «").append(usbConfig)
+                .append("» — вероятно, нужно переключить USB в инженерном меню на debug/peripheral-adb\n")
+            else -> b.append("ADB ВЫКЛЮЧЕН (adb_enabled=").append(adbEnabled).append(") — без инженерного меню кабель не поможет\n")
+        }
+        if (port5555 || (tcpPort.isNotEmpty() && tcpPort != "-1" && tcpPort != "0")) {
+            b.append("ВЫВОД: ADB по сети похоже открыт (порт ").append(if (tcpPort.isEmpty()) "5555" else tcpPort)
+                .append(") — можно без кабеля: adb connect <IP машины>:").append(if (tcpPort.isEmpty()) "5555" else tcpPort).append('\n')
+        } else {
+            b.append("ADB по сети: не включён (tcp.port=«").append(tcpPort).append("», порт 5555 ").append(if (port5555) "открыт" else "закрыт").append(")\n")
+        }
+        b.append('\n')
+        b.append("Settings.Global.adb_enabled = ").append(adbEnabled).append('\n')
+        b.append("Settings.Global.development_settings_enabled = ").append(devSettings).append('\n')
+        b.append("Settings.Global.adb_wifi_enabled = ").append(adbWifi).append('\n')
+        b.append("sys.usb.config = ").append(usbConfig).append("   sys.usb.state = ").append(usbState)
+            .append("   persist.sys.usb.config = ").append(persistUsb).append('\n')
+        b.append("init.svc.adbd = ").append(adbd).append("   service.adb.tcp.port = ").append(tcpPort).append('\n')
+        b.append("ro.adb.secure = ").append(secure).append("   ro.debuggable = ").append(debuggable)
+            .append("   ro.build.type = ").append(buildType).append('\n')
+        b.append("Сборка прошивки: ").append(sysProp("ro.build.display.id")).append('\n')
+        b.append("IP-адреса машины (для adb connect):\n")
+        try {
+            val ifaces = java.net.NetworkInterface.getNetworkInterfaces()
+            for (ni in ifaces) {
+                for (addr in ni.inetAddresses) {
+                    if (!addr.isLoopbackAddress && addr is java.net.Inet4Address) {
+                        b.append("  ").append(ni.name).append(" ").append(addr.hostAddress).append('\n')
+                    }
+                }
+            }
+        } catch (t: Throwable) {
+            b.append("  ").append(CarProbe.describe(t)).append('\n')
+        }
         return b.toString()
     }
 
