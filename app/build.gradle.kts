@@ -69,7 +69,6 @@ dependencies {
     // Lifts Android's hidden-API reflection filter for this process (no root). The ECARX
     // AdaptAPI jar sits in /system/framework and its members are invisible otherwise.
     implementation("org.lsposed.hiddenapibypass:hiddenapibypass:4.3")
-    // Pure-JVM ADB client: lets the app install updates over the head unit's local
-    // adbd (127.0.0.1:5555) without the system installer dialog.
-    implementation("dev.mobile:dadb:1.2.10")
+    // FileProvider, for handing the downloaded update APK to the system installer.
+    implementation("androidx.core:core:1.13.1")
 }

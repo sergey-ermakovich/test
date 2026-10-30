@@ -1,17 +1,18 @@
 package com.zeekrprobe
 
 import android.content.Context
-import dadb.AdbKeyPair
-import dadb.Dadb
+import android.content.Intent
+import androidx.core.content.FileProvider
 import org.json.JSONObject
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
 
 /**
- * Self-update over the head unit's local ADB. adbd listens on tcp 5555, so the app
- * connects to 127.0.0.1:5555 and runs the package manager as the shell user, which
- * avoids the "allow installs from this source" dialog the car settings can't open.
+ * Self-update: download the latest release APK and hand it to the system installer
+ * (or APKPure) via an install intent. The head unit's adbd only serves USB, so local
+ * ADB (127.0.0.1:5555) times out — hence the intent path, which is what already works
+ * for sideloading on this car.
  *
  * Releases come from this repository's GitHub Releases; the build number is the CI
  * run number, baked in as versionCode.
@@ -71,7 +72,9 @@ class Updater(private val context: Context, private val log: (String) -> Unit) {
 
     /** Downloads the APK to the app cache and returns the file. */
     private fun download(rel: Release): File {
-        val out = File(context.cacheDir, "update.apk")
+        // Shared with FileProvider (see file_paths.xml → "updates" → files/updates).
+        val dir = File(context.filesDir, "updates").apply { mkdirs() }
+        val out = File(dir, "update.apk")
         log("Качаю ${rel.tag}…")
         // Asset API URL + octet-stream → GitHub 302-redirects to a signed CDN URL that
         // must be fetched WITHOUT the Authorization header, so follow the redirect by hand.
@@ -97,25 +100,16 @@ class Updater(private val context: Context, private val log: (String) -> Unit) {
         return out
     }
 
-    /** Installs [apk] through local ADB (pm install as shell). Returns the device banner. */
-    private fun installViaAdb(apk: File): String {
-        // A persistent key so the car only ever has to authorise this app once.
-        val dir = File(context.filesDir, "adb").apply { mkdirs() }
-        val priv = File(dir, "adbkey")
-        val pub = File(dir, "adbkey.pub")
-        if (!priv.exists() || !pub.exists()) {
-            log("Создаю ADB-ключ…")
-            AdbKeyPair.generate(priv, pub)
+    /** Hands [apk] to the system installer / APKPure via an install intent. */
+    private fun installViaIntent(apk: File) {
+        val uri = FileProvider.getUriForFile(context, context.packageName + ".fileprovider", apk)
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, "application/vnd.android.package-archive")
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
-        val keyPair = AdbKeyPair.read(priv, pub)
-        log("Подключаюсь к adb 127.0.0.1:5555…")
-        // connectTimeout / readTimeout in ms — without them a refused/filtered port hangs
-        // the button forever with no feedback.
-        Dadb.create("127.0.0.1", 5555, keyPair, 10_000, 120_000).use { dadb ->
-            log("Подключился, ставлю APK через pm install…")
-            dadb.install(apk)
-        }
-        return "установлено"
+        log("Открываю установщик…")
+        context.startActivity(intent)
     }
 
     /** Full flow used by the button. Safe to call off the UI thread. */
@@ -125,13 +119,11 @@ class Updater(private val context: Context, private val log: (String) -> Unit) {
         if (!force && rel.build in 0..cur) return "Уже последняя версия (build $cur)"
         val apk = download(rel)
         return try {
-            installViaAdb(apk)
-            "Готово: ${rel.tag} — приложение сейчас перезапустится"
+            installViaIntent(apk)
+            "Качает ${rel.tag}. Подтверди установку в появившемся окне."
         } catch (t: Throwable) {
-            "ADB-установка не удалась: " + CarProbe.describe(t) +
-                "\nПроверь, что на экране машины подтверждён запрос ADB-отладки."
-        } finally {
-            apk.delete()
+            "Не удалось открыть установщик: " + CarProbe.describe(t)
         }
+        // Note: the APK is kept (not deleted) — the installer reads it after we return.
     }
 }

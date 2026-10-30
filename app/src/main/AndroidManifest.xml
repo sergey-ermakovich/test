@@ -13,6 +13,8 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- Needed on API 30+ to list OEM packages and the permissions they define. -->
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
+    <!-- Lets the app hand a downloaded APK to the system installer for self-update. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <!-- Android Automotive car-service permissions. Most are signature|privileged and will
          simply not be granted to a sideloaded app; declaring them costs nothing and lets us
@@ -43,6 +45,17 @@
         android:allowBackup="false">
 
         <uses-library android:name="android.car" android:required="false" />
+
+        <!-- Serves the downloaded update APK to the installer. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
 
         <activity
             android:name=".MainActivity"
