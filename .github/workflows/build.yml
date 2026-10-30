@@ -52,12 +52,9 @@ jobs:
           tag_name: probe-${{ github.run_number }}
           name: Zeekr Probe build ${{ github.run_number }}
           body: |
-            Тестовый APK для проверки, что ставится на ГУ и какие данные машины доступны.
-
-            * `ZeekrProbe-N.apk` — обычная debug-подпись, пакет `com.zeekrprobe` (ставить на машину).
-            * `ZeekrProbe-N-platform.apk` (если есть) — подпись платформенным ключом AOSP, пакет `com.zeekrprobe.sys`.
-            * `NetInfo-N.apk` — маленькое приложение для ТЕЛЕФОНА: показывает IP телефона, шлюз и
-              соседние устройства, помогает найти IP машины для `adb connect`.
+            * `ZeekrProbe-N.apk` — ставить на машину (пакет `com.zeekrprobe`).
+            * `NetInfo-N.apk` — вспомогательное приложение для телефона (поиск машины в сети);
+              для бортжурнала не нужно.
           files: |
             ZeekrProbe-*.apk
             NetInfo-*.apk
