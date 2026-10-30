@@ -15,7 +15,6 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
-import java.io.File
 import java.net.Inet4Address
 import java.net.InetSocketAddress
 import java.net.NetworkInterface
@@ -73,7 +72,7 @@ class NetActivity : Activity() {
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         }
         bar.addView(button("Обновить") { refresh() })
-        bar.addView(button("Сканировать :5555") { refresh(scan = true) })
+        bar.addView(button("Найти машину") { refresh(scan = true) })
         bar.addView(button("Копировать") {
             val cm = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
             cm.setPrimaryClip(android.content.ClipData.newPlainText("netinfo", lastText))
@@ -95,9 +94,9 @@ class NetActivity : Activity() {
         root.addView(scroll)
 
         val hint = TextView(this).apply {
-            text = "Включи раздачу Wi-Fi на телефоне, подключи к ней машину (или наоборот). " +
-                "Машина появится в «Соседних устройствах». Жми «Сканировать :5555» — " +
-                "у кого ADB открыт, тот помечен ✓. Его адрес вводи в Bugjaeger."
+            text = "Телефон подключён к хотспоту машины (ZEEKR-…). Жми «Найти машину» — " +
+                "перебор подсети найдёт адрес с открытым ADB (помечен ✓). Его вводи в Bugjaeger. " +
+                "Если VPN включён — выключи его на время."
             setTextColor(Color.rgb(150, 160, 180))
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f)
             gravity = Gravity.START
@@ -119,7 +118,8 @@ class NetActivity : Activity() {
 
     private fun build(scan: Boolean): String {
         val sb = StringBuilder()
-        val myIps = ArrayList<String>()
+        val wifiIps = ArrayList<String>()   // IPv4 on wlan-like interfaces, where the car is
+        var hasVpn = false
 
         sb.append("ТВОЙ ТЕЛЕФОН\n")
         try {
@@ -127,96 +127,89 @@ class NetActivity : Activity() {
                 if (!ni.isUp || ni.isLoopback) continue
                 for (addr in ni.inetAddresses) {
                     if (addr is Inet4Address && !addr.isLoopbackAddress) {
-                        sb.append("  ").append(ni.name).append("  ").append(addr.hostAddress).append('\n')
-                        myIps.add(addr.hostAddress)
+                        val ip = addr.hostAddress ?: continue
+                        sb.append("  ").append(ni.name).append("  ").append(ip).append('\n')
+                        val n = ni.name.lowercase()
+                        if (n.startsWith("tun") || n.startsWith("ppp") || n.startsWith("ipsec")) hasVpn = true
+                        else if (n.startsWith("wlan") || n.startsWith("ap") || n.startsWith("swlan")) wifiIps.add(ip)
                     }
                 }
             }
         } catch (t: Throwable) {
             sb.append("  не удалось: ").append(t.javaClass.simpleName).append('\n')
         }
-        if (myIps.isEmpty()) sb.append("  нет активных IPv4 — Wi-Fi выключен?\n")
+        if (wifiIps.isEmpty()) sb.append("  нет Wi-Fi IPv4 — подключись к хотспоту машины\n")
 
-        val gw = defaultGateway()
-        sb.append("\nШЛЮЗ (кто раздаёт тебе интернет)\n")
-        sb.append("  ").append(gw ?: "нет — значит, раздаёшь ты сам").append('\n')
-
-        val peers = arpPeers()
-        sb.append("\nСОСЕДНИЕ УСТРОЙСТВА (").append(peers.size).append(")\n")
-        if (peers.isEmpty()) {
-            sb.append("  пусто. Если ты раздаёшь Wi-Fi — убедись, что машина к тебе подключилась.\n")
-            sb.append("  (на части телефонов список соседей закрыт системой — тогда смотри шлюз выше)\n")
-        }
-        // The peer worth connecting to is almost always the one that isn't the gateway
-        // (the gateway is the router/hotspot itself). Mark ADB-open ones when scanning.
-        for (p in peers) {
-            sb.append("  ").append(p.ip)
-            if (p.ip == gw) sb.append("  (шлюз)")
-            sb.append("  ").append(p.mac).append("  ").append(p.iface)
-            if (scan) sb.append(if (portOpen(p.ip, adbPort)) "  ✓ ADB:5555 ОТКРЫТ" else "  — 5555 закрыт")
-            sb.append('\n')
+        if (hasVpn) {
+            sb.append("\n⚠ ВКЛЮЧЁН VPN (tun0)\n")
+            sb.append("  Он может перехватывать трафик и мешать достучаться до машины.\n")
+            sb.append("  Если подключение не идёт — выключи VPN и сканируй снова.\n")
         }
 
-        sb.append("\nЧТО ВВОДИТЬ В BUGJAEGER\n")
-        val candidates = LinkedHashSet<String>()
-        if (gw != null) candidates.add(gw)
-        peers.forEach { if (it.ip != gw) candidates.add(it.ip) }
-        if (candidates.isEmpty()) {
-            sb.append("  (адрес машины появится, когда устройства увидят друг друга)\n")
-        } else {
-            for (ip in candidates) {
-                sb.append("  adb connect ").append(ip).append(':').append(adbPort)
-                if (scan && portOpen(ip, adbPort)) sb.append("   ← этот, ADB открыт")
-                sb.append('\n')
+        if (!scan) {
+            sb.append("\nЖми «Найти машину» — телефон переберёт свою Wi-Fi подсеть\n")
+            sb.append("и покажет, у кого открыт ADB-порт 5555.\n")
+            // Still show the obvious candidate immediately.
+            for (ip in wifiIps) {
+                val gw = subnetBase(ip) + ".1"
+                sb.append("\nВероятный адрес машины: ").append(gw)
+                sb.append("\n  adb connect ").append(gw).append(':').append(adbPort).append('\n')
             }
+            return sb.toString()
         }
-        if (!scan) sb.append("\n(нажми «Сканировать :5555», чтобы увидеть, у кого ADB реально открыт)\n")
+
+        // Active scan: walk the whole /24 of each Wi-Fi interface for an open 5555.
+        // This finds the car without needing ARP or a default route.
+        sb.append("\nСКАНИРУЮ ПОДСЕТЬ…\n")
+        val found = ArrayList<String>()
+        for (ip in wifiIps) {
+            val base = subnetBase(ip)
+            sb.append("  ").append(base).append(".1–254 (порт ").append(adbPort).append(")\n")
+            found += scanSubnet(base, ip)
+        }
+
+        sb.append("\nНАЙДЕНА МАШИНА (ADB открыт)\n")
+        if (found.isEmpty()) {
+            sb.append("  никого с открытым 5555.\n")
+            sb.append("  • выключи VPN, если включён;\n")
+            sb.append("  • на части телефонов хотспот изолирует клиентов — тогда наоборот:\n")
+            sb.append("    раздай Wi-Fi с ТЕЛЕФОНА и подключи к нему машину;\n")
+            sb.append("  • либо ADB у машины слушает только локально — тогда обновляйся\n")
+            sb.append("    кнопкой «Обновить APK» в самом ZeekrProbe, сеть не нужна.\n")
+        } else {
+            for (ip in found) {
+                sb.append("  ✓ ").append(ip).append('\n')
+                sb.append("    adb connect ").append(ip).append(':').append(adbPort).append('\n')
+            }
+            sb.append("\nЭтот адрес вводи в Bugjaeger (Connect → ").append(found.first()).append(':').append(adbPort).append(").\n")
+        }
         return sb.toString()
     }
 
-    private class Peer(val ip: String, val mac: String, val iface: String)
+    /** First three octets of an IPv4, e.g. 192.168.225.147 → 192.168.225. */
+    private fun subnetBase(ip: String): String = ip.substringBeforeLast('.')
 
-    /** Reads /proc/net/arp — the kernel's neighbour table. Readable without root on most builds. */
-    private fun arpPeers(): List<Peer> {
-        val list = ArrayList<Peer>()
-        try {
-            File("/proc/net/arp").forEachLine { line ->
-                val parts = line.trim().split(Regex("\\s+"))
-                if (parts.size >= 6 && parts[0] != "IP") {
-                    val ip = parts[0]
-                    val mac = parts[3]
-                    val iface = parts[5]
-                    // 00:00:00:00:00:00 means incomplete/stale entry.
-                    if (mac != "00:00:00:00:00:00" && ip.count { it == '.' } == 3) {
-                        list.add(Peer(ip, mac, iface))
-                    }
-                }
+    /** Scans base.1..254:port in parallel, skipping our own address. Returns open hosts. */
+    private fun scanSubnet(base: String, selfIp: String): List<String> {
+        val pool = Executors.newFixedThreadPool(64)
+        val hits = java.util.concurrent.CopyOnWriteArrayList<String>()
+        val tasks = (1..254).mapNotNull { i ->
+            val ip = "$base.$i"
+            if (ip == selfIp) null else java.util.concurrent.Callable {
+                if (portOpen(ip, adbPort)) hits.add(ip)
             }
-        } catch (_: Throwable) {
         }
-        return list
-    }
-
-    /** Default-route gateway from /proc/net/route (hex, little-endian). */
-    private fun defaultGateway(): String? {
         try {
-            File("/proc/net/route").readLines().drop(1).forEach { line ->
-                val f = line.split(Regex("\\s+"))
-                if (f.size > 2 && f[1] == "00000000") {
-                    val hex = f[2]
-                    if (hex.length == 8) {
-                        val b = hex.chunked(2).map { it.toInt(16) }
-                        return "${b[3]}.${b[2]}.${b[1]}.${b[0]}"
-                    }
-                }
-            }
+            pool.invokeAll(tasks, 20, java.util.concurrent.TimeUnit.SECONDS)
         } catch (_: Throwable) {
+        } finally {
+            pool.shutdownNow()
         }
-        return null
+        return hits.sortedBy { it.substringAfterLast('.').toIntOrNull() ?: 0 }
     }
 
     private fun portOpen(ip: String, port: Int): Boolean = try {
-        Socket().use { it.connect(InetSocketAddress(ip, port), 600); true }
+        Socket().use { it.connect(InetSocketAddress(ip, port), 500); true }
     } catch (_: Throwable) {
         false
     }

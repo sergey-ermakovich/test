@@ -167,8 +167,9 @@ class MainActivity : Activity() {
 
         val buttons2 = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
         buttons2.addView(button("Обновить APK") { updateApk(force = false) }.apply {
-            setOnLongClickListener { updateApk(force = true); true }
+            setOnLongClickListener { editUpdateToken(); true }
         })
+        buttons2.addView(button("Переустановить") { updateApk(force = true) })
         root.addView(buttons2)
 
         live = TextView(this).apply {
@@ -685,6 +686,26 @@ class MainActivity : Activity() {
             }
             toast(result)
         }
+    }
+
+    private fun editUpdateToken() {
+        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(16), dp(8), dp(16), 0) }
+        val field = android.widget.EditText(this).apply {
+            hint = "github_pat_… (только если репа приватная)"
+            setText(prefs.getString("gh_token", ""))
+        }
+        box.addView(field)
+        android.app.AlertDialog.Builder(this)
+            .setTitle("Токен GitHub для обновлений")
+            .setMessage("Нужен fine-grained token с доступом Contents: Read к репозиторию. " +
+                "Если сделать репозиторий публичным, токен не нужен.")
+            .setView(box)
+            .setPositiveButton("Сохранить") { _, _ ->
+                prefs.edit().putString("gh_token", field.text.toString().trim()).apply()
+                toast("Токен сохранён")
+            }
+            .setNegativeButton("Отмена", null)
+            .show()
     }
 
     private fun toast(msg: String) = ui.post { Toast.makeText(this, msg, Toast.LENGTH_LONG).show() }
