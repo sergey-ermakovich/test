@@ -179,10 +179,16 @@ class MainActivity : Activity() {
             setPadding(0, dp(8), 0, dp(8))
             text = "…"
         }
-        // Big banner so the two installs can't be confused on the car screen.
+        // Big banner so the two installs can't be confused on the car screen, and so the
+        // installed build number is visible — makes it obvious when an update actually landed.
         val banner = TextView(this).apply {
             val sys = packageName.endsWith(".sys")
-            text = if (sys) "ZEEKR PROBE SYS — платформенная подпись" else "ZEEKR PROBE — обычная подпись"
+            val name = if (sys) "ZEEKR PROBE SYS — платформенная подпись" else "ZEEKR PROBE — обычная подпись"
+            val build = try {
+                val pi = packageManager.getPackageInfo(packageName, 0)
+                if (Build.VERSION.SDK_INT >= 28) pi.longVersionCode else @Suppress("DEPRECATION") pi.versionCode.toLong()
+            } catch (_: Throwable) { -1L }
+            text = "$name  ·  build $build"
             setTextColor(if (sys) Color.rgb(255, 170, 60) else Color.rgb(120, 180, 255))
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f * textScale)
             typeface = Typeface.DEFAULT_BOLD
