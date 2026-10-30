@@ -30,17 +30,20 @@ jobs:
           BUILD_NUMBER: ${{ github.run_number }}
         run: |
           if [ -f tools/platform-key/androiddebugkey.jks ]; then
-            ./gradlew assembleDebug assemblePlatform --no-daemon --stacktrace
+            ./gradlew :app:assembleDebug :app:assemblePlatform :netinfo:assembleDebug --no-daemon --stacktrace
             cp app/build/outputs/apk/platform/app-platform.apk ZeekrProbe-${{ github.run_number }}-platform.apk
           else
-            ./gradlew assembleDebug --no-daemon --stacktrace
+            ./gradlew :app:assembleDebug :netinfo:assembleDebug --no-daemon --stacktrace
           fi
           cp app/build/outputs/apk/debug/app-debug.apk ZeekrProbe-${{ github.run_number }}.apk
+          cp netinfo/build/outputs/apk/debug/netinfo-debug.apk NetInfo-${{ github.run_number }}.apk
 
       - uses: actions/upload-artifact@v4
         with:
           name: ZeekrProbe-apk
-          path: ZeekrProbe-*.apk
+          path: |
+            ZeekrProbe-*.apk
+            NetInfo-*.apk
 
       # A GitHub Release gives a plain https link to the APK, which can be opened
       # straight from the head unit's browser without logging in.
@@ -51,7 +54,10 @@ jobs:
           body: |
             Тестовый APK для проверки, что ставится на ГУ и какие данные машины доступны.
 
-            * `ZeekrProbe-N.apk` — обычная debug-подпись, пакет `com.zeekrprobe`.
+            * `ZeekrProbe-N.apk` — обычная debug-подпись, пакет `com.zeekrprobe` (ставить на машину).
             * `ZeekrProbe-N-platform.apk` (если есть) — подпись платформенным ключом AOSP, пакет `com.zeekrprobe.sys`.
-              Если прошивка на тестовых ключах, этот вариант получит системные разрешения.
-          files: ZeekrProbe-*.apk
+            * `NetInfo-N.apk` — маленькое приложение для ТЕЛЕФОНА: показывает IP телефона, шлюз и
+              соседние устройства, помогает найти IP машины для `adb connect`.
+          files: |
+            ZeekrProbe-*.apk
+            NetInfo-*.apk
