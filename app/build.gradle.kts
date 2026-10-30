@@ -1,6 +1,7 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.plugin.compose")
 }
 
 android {
@@ -14,7 +15,7 @@ android {
         // versionCode is the CI run number (= the probe-N release tag), so self-update
         // can tell "is the latest release newer than what's installed". 0 in local builds.
         versionCode = (System.getenv("BUILD_NUMBER") ?: "0").toInt()
-        versionName = "0." + (System.getenv("BUILD_NUMBER") ?: "0")
+        versionName = "1." + (System.getenv("BUILD_NUMBER") ?: "0")
     }
 
     // One fixed signing key, restored by CI from a repo secret into signing/zeekrprobe.jks.
@@ -32,8 +33,11 @@ android {
         }
     }
 
-    defaultConfig.manifestPlaceholders["appIcon"] = "@android:drawable/ic_menu_compass"
-    defaultConfig.resValue("string", "app_name", "Zeekr Probe")
+    defaultConfig.resValue("string", "app_name", "Zeekr Журнал")
+
+    buildFeatures {
+        compose = true
+    }
 
     buildTypes {
         release {
@@ -56,5 +60,16 @@ dependencies {
     // AdaptAPI jar sits in /system/framework and its members are invisible otherwise.
     implementation("org.lsposed.hiddenapibypass:hiddenapibypass:4.3")
     // FileProvider, for handing the downloaded update APK to the system installer.
-    implementation("androidx.core:core:1.13.1")
+    implementation("androidx.core:core-ktx:1.13.1")
+
+    // Jetpack Compose + Material 3 for the journal UI. Pinned to known stable versions
+    // (no local Android SDK here to compile against — CI builds it).
+    implementation("androidx.activity:activity-compose:1.9.3")
+    implementation("androidx.compose.ui:ui:1.7.5")
+    implementation("androidx.compose.ui:ui-graphics:1.7.5")
+    implementation("androidx.compose.foundation:foundation:1.7.5")
+    implementation("androidx.compose.material3:material3:1.3.1")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
 }

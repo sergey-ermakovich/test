@@ -62,9 +62,10 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: probe-${{ github.run_number }}
-          name: Zeekr Probe build ${{ github.run_number }}
+          name: Zeekr Журнал build ${{ github.run_number }}
           body: |
-            * `ZeekrProbe-N.apk` — ставить на машину (пакет `com.zeekrprobe`).
+            * `ZeekrProbe-N.apk` — бортжурнал, ставить на машину (пакет `com.zeekrprobe`).
+              Обновляется поверх прежней версии. Диагностика — за кнопкой на главном.
             * `NetInfo-N.apk` — вспомогательное приложение для телефона (поиск машины в сети);
               для бортжурнала не нужно.
           files: |

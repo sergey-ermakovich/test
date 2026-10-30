@@ -15,6 +15,10 @@
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
     <!-- Lets the app hand a downloaded APK to the system installer for self-update. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <!-- Foreground service that samples the car and auto-detects charging in the background. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!-- Android Automotive car-service permissions. Most are signature|privileged and will
          simply not be granted to a sideloaded app; declaring them costs nothing and lets us
@@ -26,22 +30,12 @@
     <uses-permission android:name="android.car.permission.CAR_POWERTRAIN" />
     <uses-permission android:name="android.car.permission.CAR_EXTERIOR_ENVIRONMENT" />
     <uses-permission android:name="android.car.permission.CAR_ENERGY_PORTS" />
-    <uses-permission android:name="android.car.permission.CAR_TIRES" />
-    <uses-permission android:name="android.car.permission.CAR_DYNAMICS_STATE" />
-    <uses-permission android:name="android.car.permission.CAR_DRIVING_STATE" />
-    <uses-permission android:name="android.car.permission.CAR_ENGINE_DETAILED" />
-    <uses-permission android:name="android.car.permission.CAR_IDENTIFICATION" />
-    <uses-permission android:name="android.car.permission.CAR_EXTERIOR_LIGHTS" />
-    <uses-permission android:name="android.car.permission.CAR_VENDOR_EXTENSION" />
-    <uses-permission android:name="android.car.permission.CONTROL_CAR_CLIMATE" />
-    <uses-permission android:name="android.car.permission.CONTROL_CAR_DOORS" />
-    <uses-permission android:name="android.car.permission.READ_CAR_DISPLAY_UNITS" />
-    <uses-permission android:name="android.car.permission.CAR_POWER" />
 
     <application
+        android:name=".JournalApp"
         android:label="@string/app_name"
-        android:icon="${appIcon}"
-        android:theme="@android:style/Theme.Material.NoActionBar"
+        android:icon="@android:drawable/ic_menu_compass"
+        android:theme="@style/Theme.Journal"
         android:allowBackup="false">
 
         <uses-library android:name="android.car" android:required="false" />
@@ -57,15 +51,31 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
+        <!-- The journal is the launcher screen. -->
         <activity
-            android:name=".MainActivity"
+            android:name=".journal.JournalActivity"
             android:exported="true"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode"
-            android:launchMode="singleTask">
+            android:launchMode="singleTask"
+            android:theme="@style/Theme.Journal">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Old diagnostic probe, now reached via a button inside the journal. -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|uiMode"
+            android:launchMode="singleTask"
+            android:theme="@android:style/Theme.Material.NoActionBar" />
+
+        <!-- Background sampler: SoC/odometer + charge auto-detection. -->
+        <service
+            android:name=".journal.SamplingService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
     </application>
 </manifest>
