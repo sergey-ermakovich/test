@@ -62,3 +62,9 @@ android {
         jvmTarget = "17"
     }
 }
+
+dependencies {
+    // Lifts Android's hidden-API reflection filter for this process (no root). The ECARX
+    // AdaptAPI jar sits in /system/framework and its members are invisible otherwise.
+    implementation("org.lsposed.hiddenapibypass:hiddenapibypass:4.3")
+}

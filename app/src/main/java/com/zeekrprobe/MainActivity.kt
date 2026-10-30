@@ -53,6 +53,17 @@ class MainActivity : Activity() {
     private var satsTotal = 0
     private var accel = floatArrayOf(0f, 0f, 0f)
     private var lastReport = ""
+    private var hiddenApiStatus = ""
+
+    /** Android hides non-SDK members of /system/framework jars from reflection; lift that. */
+    private fun liftHiddenApiFilter(): String = try {
+        if (Build.VERSION.SDK_INT >= 28) {
+            val ok = org.lsposed.hiddenapibypass.HiddenApiBypass.addHiddenApiExemptions("")
+            if (ok) "снят (HiddenApiBypass)" else "HiddenApiBypass вернул false"
+        } else "не нужен (API < 28)"
+    } catch (t: Throwable) {
+        "не удалось: " + CarProbe.describe(t)
+    }
 
     // Explicit object instead of a SAM lambda: before API 29 the other three methods
     // are abstract, so a lambda would blow up with AbstractMethodError at runtime.
@@ -88,6 +99,7 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        hiddenApiStatus = liftHiddenApiFilter()
         car = CarProbe(this)
         ecarx = EcarxProbe(this)
         setContentView(buildUi())
@@ -208,7 +220,8 @@ class MainActivity : Activity() {
                 .append("   улица ").append(out?.let { "%.1f °C".format(it) } ?: "—")
                 .append("   зарядка ").append(kw?.let { "%.1f кВт".format(it) } ?: "нет").append('\n')
         } else {
-            sb.append("ECARX ").append(if (ecarx.libraryPresent) ecarx.connectError ?: "не подключился" else "AdaptAPI отсутствует").append('\n')
+            val err = ecarx.connectError ?: "не подключился"
+            sb.append("ECARX ").append(if (ecarx.libraryPresent) err.lineSequence().first().take(80) else "AdaptAPI отсутствует").append('\n')
         }
         if (car.libraryPresent) {
             val speedMs = car.readFloat(0x11600207)
@@ -316,6 +329,7 @@ class MainActivity : Activity() {
             .append("  bluetooth: ").append(pm.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH))
             .append("  wifi: ").append(pm.hasSystemFeature(PackageManager.FEATURE_WIFI)).append('\n')
         b.append("Класс android.car найден: ").append(car.libraryPresent).append('\n')
+        b.append("Фильтр скрытых API: ").append(hiddenApiStatus).append('\n')
         b.append("Locale: ").append(Locale.getDefault()).append("  TZ: ").append(java.util.TimeZone.getDefault().id).append('\n')
         return b.toString()
     }

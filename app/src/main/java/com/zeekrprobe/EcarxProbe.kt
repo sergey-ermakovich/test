@@ -99,6 +99,8 @@ class EcarxProbe(private val context: Context) {
     var connectMillis: Long = -1
         private set
 
+    private var lastAttempt = 0L
+
     @Synchronized
     fun connect(): Boolean {
         if (car != null) return true
@@ -106,7 +108,11 @@ class EcarxProbe(private val context: Context) {
             connectError = "класс $CAR_CLASS не найден — ECARX AdaptAPI на этой системе нет"
             return false
         }
-        val t0 = System.currentTimeMillis()
+        // The live panel polls every 0.7 s; don't hammer a failing create() that often.
+        val now = System.currentTimeMillis()
+        if (connectError != null && now - lastAttempt < 15_000) return false
+        lastAttempt = now
+        val t0 = now
         try {
             val c = createCar() ?: run {
                 connectError = "не удалось создать Car:\n" + createLog.toString().trimEnd()
@@ -146,6 +152,7 @@ class EcarxProbe(private val context: Context) {
      * the known impl classes, passing the Context where it fits and nulls elsewhere.
      */
     private fun createCar(): Any? {
+        createLog.setLength(0)
         val classes = listOf(
             CAR_CLASS,
             "com.zeekrlife.adaptapi.car.impl.CarImpl",
@@ -193,21 +200,31 @@ class EcarxProbe(private val context: Context) {
     /** Everything reflection can tell about the Car class: what to call next time. */
     fun describeCarClass(): String {
         val sb = StringBuilder()
-        val cls = try { Class.forName(CAR_CLASS) } catch (t: Throwable) { return "  " + CarProbe.describe(t) + "\n" }
-        sb.append("  ").append(cls.name).append(" extends ").append(cls.superclass?.name)
-            .append(" implements ").append(cls.interfaces.joinToString { it.name }).append('\n')
-        sb.append("  modifiers: ").append(java.lang.reflect.Modifier.toString(cls.modifiers)).append('\n')
-        for (m in cls.declaredMethods.sortedBy { it.name }) {
-            sb.append("    ").append(java.lang.reflect.Modifier.toString(m.modifiers)).append(' ')
-                .append(m.returnType.simpleName).append(' ').append(m.name)
-                .append('(').append(m.parameterTypes.joinToString { it.name }).append(")\n")
-        }
-        for (f in cls.declaredFields) {
-            sb.append("    field ").append(java.lang.reflect.Modifier.toString(f.modifiers)).append(' ')
-                .append(f.type.simpleName).append(' ').append(f.name).append('\n')
-        }
-        for (c in cls.declaredConstructors) {
-            sb.append("    ctor(").append(c.parameterTypes.joinToString { it.name }).append(")\n")
+        var cls: Class<*>? = try { Class.forName(CAR_CLASS) } catch (t: Throwable) { return "  " + CarProbe.describe(t) + "\n" }
+        // Walk up through AdaptAPI too: the factory may live on the base class.
+        while (cls != null && cls != Any::class.java) {
+            sb.append("  ").append(cls.name).append(" extends ").append(cls.superclass?.name)
+                .append(" implements ").append(cls.interfaces.joinToString { it.name }).append('\n')
+            sb.append("  modifiers: ").append(java.lang.reflect.Modifier.toString(cls.modifiers)).append('\n')
+            val methods = cls.declaredMethods
+            val fields = cls.declaredFields
+            val ctors = cls.declaredConstructors
+            if (methods.isEmpty() && fields.isEmpty() && ctors.isEmpty()) {
+                sb.append("    (рефлексия не видит ни одного члена — скрытые API отфильтрованы)\n")
+            }
+            for (m in methods.sortedBy { it.name }) {
+                sb.append("    ").append(java.lang.reflect.Modifier.toString(m.modifiers)).append(' ')
+                    .append(m.returnType.simpleName).append(' ').append(m.name)
+                    .append('(').append(m.parameterTypes.joinToString { it.name }).append(")\n")
+            }
+            for (f in fields) {
+                sb.append("    field ").append(java.lang.reflect.Modifier.toString(f.modifiers)).append(' ')
+                    .append(f.type.simpleName).append(' ').append(f.name).append('\n')
+            }
+            for (c in ctors) {
+                sb.append("    ctor(").append(c.parameterTypes.joinToString { it.name }).append(")\n")
+            }
+            cls = cls.superclass
         }
         return sb.toString()
     }
