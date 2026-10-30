@@ -94,3 +94,5 @@ IP машины печатается в секции `ADB` отчёта.
   и [zee-power-toys](https://github.com/maxim-saplin/zee-power-toys).
   На китайской прошивке 7X сигнатура `Car.create` отличается от зарубежной —
   пробник подбирает её.
+
+<!-- build trigger: signing key via CI secrets active -->
