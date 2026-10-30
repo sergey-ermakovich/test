@@ -37,7 +37,8 @@ object CarRepo {
         if (!::probe.isInitialized) probe = EcarxProbe(context.applicationContext)
     }
 
-    /** Blocking read; returns the new state and also publishes it. */
+    /** Blocking read; returns the new state and also publishes it. Serialised across callers. */
+    @Synchronized
     fun refresh(): CarState {
         val ok = try { probe.connect() } catch (_: Throwable) { false }
         val s = if (!ok) {

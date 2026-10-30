@@ -60,11 +60,16 @@ class JournalActivity : ComponentActivity() {
     }
 
     private fun requestNotifications() {
+        val want = mutableListOf<String>()
+        if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            want += Manifest.permission.ACCESS_FINE_LOCATION
+        }
         if (Build.VERSION.SDK_INT >= 33 &&
             checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)
+            want += Manifest.permission.POST_NOTIFICATIONS
         }
+        if (want.isNotEmpty()) ActivityCompat.requestPermissions(this, want.toTypedArray(), 1)
     }
 }
 
@@ -81,6 +86,8 @@ private fun AppRoot() {
     val charges by Store.charges.collectAsState()
     val stats = remember(charges) { Store.stats() }
     val pending = remember(charges) { charges.count { it.auto && !it.confirmed } }
+    val trip by TripRecorder.state.collectAsState()
+    val tripSummary by TripRecorder.summary.collectAsState()
 
     var tab by remember { mutableStateOf(Tab.DASHBOARD) }
     var showAdd by remember { mutableStateOf(false) }
@@ -150,6 +157,9 @@ private fun AppRoot() {
                     car = car,
                     stats = stats,
                     pending = pending,
+                    trip = trip,
+                    onStartTrip = { TripService.start(context) },
+                    onStopTrip = { TripService.stop(context) },
                     updating = updating,
                     onUpdate = { runUpdate() },
                     onOpenProbe = { context.startActivity(Intent(context, MainActivity::class.java)) },
@@ -180,6 +190,18 @@ private fun AppRoot() {
                 TextButton(onClick = { updateMsg = null }) { Text("Ок", color = Energy) }
             },
             title = { Text("Обновление") },
+            text = { Text(msg) },
+            containerColor = com.zeekrprobe.journal.ui.Surface1,
+        )
+    }
+
+    tripSummary?.let { msg ->
+        AlertDialog(
+            onDismissRequest = { TripRecorder.clearSummary() },
+            confirmButton = {
+                TextButton(onClick = { TripRecorder.clearSummary() }) { Text("Ок", color = Energy) }
+            },
+            title = { Text("Поездка") },
             text = { Text(msg) },
             containerColor = com.zeekrprobe.journal.ui.Surface1,
         )

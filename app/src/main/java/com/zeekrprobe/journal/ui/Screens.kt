@@ -64,6 +64,9 @@ fun DashboardScreen(
     car: CarState,
     stats: Stats,
     pending: Int,
+    trip: com.zeekrprobe.journal.TripState?,
+    onStartTrip: () -> Unit,
+    onStopTrip: () -> Unit,
     updating: Boolean,
     onUpdate: () -> Unit,
     onOpenProbe: () -> Unit,
@@ -138,6 +141,9 @@ fun DashboardScreen(
         }
 
         Spacer(Modifier.height(16.dp))
+        TripCard(trip = trip, onStart = onStartTrip, onStop = onStopTrip)
+
+        Spacer(Modifier.height(16.dp))
         SectionCard(title = "Пробег и энергия") {
             InfoRow("Пройдено (по зарядкам)", "${stats.distanceKm.toInt()} км")
             InfoRow("Залито всего", "${num1(stats.energyTotal)} кВт·ч")
@@ -174,6 +180,47 @@ private fun MiniStat(label: String, value: String, unit: String, accent: Color) 
             Text(" $unit", color = TextMid, fontSize = 12.sp, modifier = Modifier.padding(bottom = 3.dp))
         }
         Text(label, color = TextMid, fontSize = 12.sp)
+    }
+}
+
+@Composable
+private fun TripCard(
+    trip: com.zeekrprobe.journal.TripState?,
+    onStart: () -> Unit,
+    onStop: () -> Unit,
+) {
+    SectionCard(title = "Запись поездки") {
+        if (trip == null) {
+            Text(
+                "Сравнивает спидометр с GPS и проверяет одометр. Пишется в фоне — можно свернуть на карту или музыку, запись не прервётся.",
+                color = TextMid, fontSize = 13.sp,
+            )
+            Spacer(Modifier.height(12.dp))
+            Button(
+                onClick = onStart,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = Energy, contentColor = Bg),
+            ) { Text("▶ Начать поездку", fontWeight = FontWeight.SemiBold) }
+        } else {
+            val mm = trip.seconds / 60
+            val ss = trip.seconds % 60
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                SegMetric(num1(trip.gpsKm), "км GPS", Energy)
+                SegMetric(trip.odoDeltaKm?.let { num1(it) } ?: "—", "км одометр", Violet)
+                SegMetric("%d:%02d".format(mm, ss), "время", TextHi)
+            }
+            Spacer(Modifier.height(10.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                SegMetric("${trip.speedEcarx.toInt()}", "км/ч прибор", Amber)
+                SegMetric("${trip.speedGps.toInt()}", "км/ч GPS", Energy)
+            }
+            Spacer(Modifier.height(14.dp))
+            Button(
+                onClick = onStop,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = Bad, contentColor = TextHi),
+            ) { Text("⏹ Остановить запись", fontWeight = FontWeight.SemiBold) }
+        }
     }
 }
 
