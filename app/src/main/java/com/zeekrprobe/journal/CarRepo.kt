@@ -16,6 +16,7 @@ data class CarState(
     val outsideC: Float? = null,
     val gear: String? = null,
     val chargeKw: Float? = null,
+    val consTripKwh100: Float? = null,
     val error: String? = null,
     val updatedAt: Long = 0L,
 ) {
@@ -53,6 +54,7 @@ object CarRepo {
                 outsideC = safe { probe.outsideC() },
                 gear = safe { probe.gear() },
                 chargeKw = safe { probe.chargeKw() },
+                consTripKwh100 = safe { probe.consumptionTrip() },
                 updatedAt = System.currentTimeMillis(),
             )
         }

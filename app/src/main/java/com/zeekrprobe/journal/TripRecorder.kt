@@ -8,6 +8,9 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+/** Result of stopping a trip: the CSV to save and a compact record to keep. */
+data class TripFinish(val csv: String, val record: TripRecord)
+
 /** Live view of an in-progress trip, collected by the UI. */
 data class TripState(
     val seconds: Long,
@@ -113,9 +116,9 @@ object TripRecorder {
         )
     }
 
-    /** Ends recording and returns the full CSV (summary header + rows), or null if not running. */
+    /** Ends recording and returns the CSV plus a compact record, or null if not running. */
     @Synchronized
-    fun finish(): String? {
+    fun finish(): TripFinish? {
         if (_state.value == null) return null
         val mins = (System.currentTimeMillis() - startMs) / 60000.0
         val odoDelta = startOdo?.let { s -> lastOdo?.let { e -> e - s } }
@@ -163,8 +166,20 @@ object TripRecorder {
             if (avgG > 1) append("приборка выше GPS на %.1f%%\n".format(Locale.US, (avgE / avgG - 1) * 100))
             append("Файл в «Загрузки» (и на хостинг, если задан).")
         }
+
+        val record = TripRecord(
+            id = startMs,
+            timestamp = startMs,
+            km = distForCons,
+            kwh = kwhUsed,
+            consumptionPer100 = cons,
+            avgTempC = avgTemp,
+            avgSpeed = if (samples > 0) avgE else null,
+            socStart = socStart?.toDouble(),
+            socEnd = socLast?.toDouble(),
+        )
         _state.value = null
-        return sb.toString()
+        return TripFinish(sb.toString(), record)
     }
 
     fun clearSummary() { _summary.value = null }

@@ -38,6 +38,7 @@ import com.zeekrprobe.journal.ui.AddChargeDialog
 import com.zeekrprobe.journal.ui.ChargesScreen
 import com.zeekrprobe.journal.ui.DashboardScreen
 import com.zeekrprobe.journal.ui.HistoryScreen
+import com.zeekrprobe.journal.ui.RangeScreen
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -48,6 +49,7 @@ class JournalActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Store.init(this)
+        TripStore.init(this)
         CarRepo.init(this)
         requestNotifications()
         maybeStartService()
@@ -77,6 +79,7 @@ private enum class Tab(val title: String, val emoji: String) {
     DASHBOARD("Главная", "🏠"),
     CHARGES("Зарядки", "⚡"),
     HISTORY("История", "🛣"),
+    RANGE("Запас", "🧭"),
 }
 
 @Composable
@@ -88,6 +91,7 @@ private fun AppRoot() {
     val pending = remember(charges) { charges.count { it.auto && !it.confirmed } }
     val trip by TripRecorder.state.collectAsState()
     val tripSummary by TripRecorder.summary.collectAsState()
+    val tripRecords by TripStore.trips.collectAsState()
 
     var tab by remember { mutableStateOf(Tab.DASHBOARD) }
     var showAdd by remember { mutableStateOf(false) }
@@ -142,7 +146,7 @@ private fun AppRoot() {
             }
         },
         floatingActionButton = {
-            if (tab != Tab.HISTORY) {
+            if (tab == Tab.DASHBOARD || tab == Tab.CHARGES) {
                 FloatingActionButton(
                     onClick = { editing = null; showAdd = true },
                     containerColor = Energy,
@@ -170,6 +174,13 @@ private fun AppRoot() {
             }
             Tab.HISTORY -> androidx.compose.foundation.layout.Box(inner) {
                 HistoryScreen(stats = stats)
+            }
+            Tab.RANGE -> androidx.compose.foundation.layout.Box(inner) {
+                RangeScreen(
+                    car = car,
+                    trips = tripRecords,
+                    segmentConsumption = stats.consumptionPer100,
+                )
             }
         }
     }

@@ -293,6 +293,8 @@ class EcarxProbe(private val context: Context) {
     fun outsideC(): Float? = sensorValue(0x00100B00)?.takeIf { isRealFloat(it) }
     fun gear(): String? = sensorEvent(0x00200200)?.let { gearName(it) }
     fun chargeKw(): Float? = customFloat(0x2420C000, ZONE_GLOBAL)?.takeIf { isRealFloat(it) && it != 0f }
+    /** Car's own trip energy consumption, kWh/100km (its trip computer). */
+    fun consumptionTrip(): Float? = sensorValue(0x00103100)?.takeIf { isRealFloat(it) && it in 0f..99f }
 
     // ---------------------------------------------------------------- report
 

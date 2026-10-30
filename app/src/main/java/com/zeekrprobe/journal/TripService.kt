@@ -51,6 +51,7 @@ class TripService : Service(), LocationListener {
     override fun onCreate() {
         super.onCreate()
         CarRepo.init(this)
+        TripStore.init(this)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -82,10 +83,13 @@ class TripService : Service(), LocationListener {
         loop?.cancel()
         loop = null
         try { locationManager().removeUpdates(this) } catch (_: Throwable) {}
-        val csv = TripRecorder.finish()
+        val fin = TripRecorder.finish()
         // Save + upload off the main thread, then tear the service down.
         Thread {
-            if (csv != null) saveAndUpload(csv)
+            if (fin != null) {
+                saveAndUpload(fin.csv)
+                try { TripStore.add(fin.record) } catch (_: Throwable) {}
+            }
             Handler(Looper.getMainLooper()).post {
                 try { stopForeground(STOP_FOREGROUND_REMOVE) } catch (_: Throwable) {}
                 stopSelf()
