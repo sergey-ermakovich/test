@@ -90,10 +90,11 @@ class MainActivity : Activity() {
     private val liveTick = object : Runnable {
         override fun run() {
             io.execute {
+                if (logging) try { logTripRow() } catch (_: Throwable) {}
                 val text = buildLive()
                 ui.post { live.text = text }
             }
-            ui.postDelayed(this, 700)
+            ui.postDelayed(this, if (logging) 1000 else 700)
         }
     }
 
@@ -170,6 +171,8 @@ class MainActivity : Activity() {
             setOnLongClickListener { editUpdateToken(); true }
         })
         buttons2.addView(button("Переустановить") { updateApk(force = true) })
+        tripButton = button("Запись") { toggleTrip() }
+        buttons2.addView(tripButton)
         root.addView(buttons2)
 
         live = TextView(this).apply {
@@ -629,19 +632,24 @@ class MainActivity : Activity() {
     private fun uploadToken() = prefs.getString("token", "") ?: ""
 
     private fun uploadReport() {
+        val text = lastReport.ifEmpty { report.text.toString() }
+        uploadText(text, packageName.substringAfterLast('.'), "txt")
+    }
+
+    /** POSTs [text] to the drop box as <name>.<ext>; shared by report and trip-log upload. */
+    private fun uploadText(text: String, name: String, ext: String) {
         val url = uploadUrl()
         if (url.isBlank()) {
             toast("Адрес сервера не задан — введи его в окне")
             editUploadTarget()
             return
         }
-        val text = lastReport.ifEmpty { report.text.toString() }
         toast("Отправляю…")
         io.execute {
             val result = try {
                 val full = url + (if (url.contains('?')) "&" else "?") +
                     "token=" + java.net.URLEncoder.encode(uploadToken(), "UTF-8") +
-                    "&name=" + java.net.URLEncoder.encode(packageName.substringAfterLast('.'), "UTF-8")
+                    "&name=" + java.net.URLEncoder.encode("$name.$ext", "UTF-8")
                 val conn = java.net.URL(full).openConnection() as java.net.HttpURLConnection
                 conn.requestMethod = "POST"
                 conn.connectTimeout = 15000
@@ -658,6 +666,93 @@ class MainActivity : Activity() {
             }
             toast(result)
         }
+    }
+
+    // ---------------------------------------------------------------- trip logging
+    // Records dashboard speed (ECARX), GPS speed, odometer and GPS-integrated distance
+    // once per tick, to compare the speedometer against GPS and see if the odometer runs
+    // fast. The whole CSV is uploaded to the drop box when recording stops.
+
+    @Volatile private var logging = false
+    private val trip = StringBuilder()
+    private var tripStartOdo: Float? = null
+    private var tripLastOdo: Float? = null
+    private var tripDistM = 0.0            // GPS-integrated distance
+    private var tripLastLoc: Location? = null
+    private var tripStartMs = 0L
+    private var sumEcarx = 0.0
+    private var sumGps = 0.0
+    private var samples = 0
+    private var maxEcarx = 0f
+    private var maxGps = 0f
+    private lateinit var tripButton: Button
+
+    private fun toggleTrip() {
+        if (logging) stopTrip() else startTrip()
+    }
+
+    private fun startTrip() {
+        trip.setLength(0)
+        trip.append("t_s,ecarx_kmh,gps_kmh,odo_km,gps_dist_km,lat,lon,gps_acc_m\n")
+        tripStartOdo = ecarx.odometerKm()
+        tripLastOdo = tripStartOdo
+        tripDistM = 0.0
+        tripLastLoc = null
+        tripStartMs = System.currentTimeMillis()
+        sumEcarx = 0.0; sumGps = 0.0; samples = 0; maxEcarx = 0f; maxGps = 0f
+        logging = true
+        window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        tripButton.text = "СТОП запись"
+        toast("Запись пошла. Можно ехать, экран не гасну. В конце нажми ещё раз.")
+    }
+
+    private fun stopTrip() {
+        logging = false
+        window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        tripButton.text = "Запись"
+        val mins = (System.currentTimeMillis() - tripStartMs) / 60000.0
+        val odoDelta = tripStartOdo?.let { s -> tripLastOdo?.let { e -> e - s } }
+        val gpsKm = tripDistM / 1000.0
+        val avgE = if (samples > 0) sumEcarx / samples else 0.0
+        val avgG = if (samples > 0) sumGps / samples else 0.0
+        val sb = StringBuilder()
+        sb.append("# Zeekr trip ").append(SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US).format(Date())).append('\n')
+        sb.append("# длительность, мин: %.1f\n".format(mins))
+        sb.append("# средняя скорость: приборка %.1f, GPS %.1f км/ч\n".format(avgE, avgG))
+        sb.append("# макс скорость: приборка %.1f, GPS %.1f км/ч\n".format(maxEcarx, maxGps))
+        if (avgG > 1) sb.append("# приборка/GPS в среднем: %.3f (приборка выше на %.1f%%)\n".format(avgE / avgG, (avgE / avgG - 1) * 100))
+        sb.append("# одометр: начало %s, конец %s, прирост %s км\n".format(
+            tripStartOdo?.let { "%.1f".format(it) } ?: "—",
+            tripLastOdo?.let { "%.1f".format(it) } ?: "—",
+            odoDelta?.let { "%.1f".format(it) } ?: "—"))
+        sb.append("# путь по GPS: %.2f км\n".format(gpsKm))
+        if (odoDelta != null && gpsKm > 0.3) sb.append("# одометр/GPS: %.3f (одометр считает на %.1f%% больше)\n".format(odoDelta / gpsKm, (odoDelta / gpsKm - 1) * 100))
+        sb.append('\n').append(trip)
+        val text = sb.toString()
+        lastReport = text  // so «Сохранить»/«Поделиться» тоже отдадут трек
+        toast("Запись остановлена, выгружаю трек…")
+        uploadText(text, "trip-" + SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(Date()), "csv")
+    }
+
+    /** Called from the live tick while recording. */
+    private fun logTripRow() {
+        val e = ecarx.speedKmh() ?: return
+        val loc = lastLocation
+        val g = loc?.let { it.speed * 3.6f } ?: 0f
+        val odo = ecarx.odometerKm()
+        if (odo != null) tripLastOdo = odo
+        // Integrate GPS distance from fixes with decent accuracy.
+        if (loc != null && loc.accuracy <= 15f) {
+            tripLastLoc?.let { prev -> if (prev != loc) tripDistM += prev.distanceTo(loc) }
+            tripLastLoc = loc
+        }
+        sumEcarx += e; sumGps += g; samples++
+        if (e > maxEcarx) maxEcarx = e
+        if (g > maxGps) maxGps = g
+        val t = (System.currentTimeMillis() - tripStartMs) / 1000.0
+        trip.append("%.1f,%.1f,%.1f,%s,%.3f,%.6f,%.6f,%.0f\n".format(
+            t, e, g, odo?.let { "%.1f".format(it) } ?: "", tripDistM / 1000.0,
+            loc?.latitude ?: 0.0, loc?.longitude ?: 0.0, loc?.accuracy ?: -1f))
     }
 
     private fun editUploadTarget() {
