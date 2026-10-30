@@ -165,6 +165,12 @@ class MainActivity : Activity() {
         })
         root.addView(buttons)
 
+        val buttons2 = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        buttons2.addView(button("Обновить APK") { updateApk(force = false) }.apply {
+            setOnLongClickListener { updateApk(force = true); true }
+        })
+        root.addView(buttons2)
+
         live = TextView(this).apply {
             typeface = Typeface.MONOSPACE
             setTextColor(Color.rgb(120, 255, 160))
@@ -663,6 +669,16 @@ class MainActivity : Activity() {
             }
             .setNegativeButton("Отмена", null)
             .show()
+    }
+
+    // ---------------------------------------------------------------- self-update over local ADB
+
+    private fun updateApk(force: Boolean) {
+        toast(if (force) "Переустанавливаю последнюю версию…" else "Проверяю обновление…")
+        io.execute {
+            val result = Updater(this) { line -> toast(line) }.updateNow(force)
+            toast(result)
+        }
     }
 
     private fun toast(msg: String) = ui.post { Toast.makeText(this, msg, Toast.LENGTH_LONG).show() }
