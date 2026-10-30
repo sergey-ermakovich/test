@@ -776,20 +776,9 @@ class MainActivity : Activity() {
     // ---------------------------------------------------------------- self-update over local ADB
 
     private fun updateApk(force: Boolean) {
-        // The installer silently refuses unless this app is allowed to install packages.
-        // The car's generic unknown-sources settings page is broken, but the per-app one
-        // (opened with a package: URI, like APKPure does) works — open it and bail.
-        if (Build.VERSION.SDK_INT >= 26 && !packageManager.canRequestPackageInstalls()) {
-            toast("Разреши ZeekrProbe устанавливать приложения, затем нажми снова")
-            try {
-                startActivity(Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
-                    android.net.Uri.parse("package:$packageName")))
-            } catch (t: Throwable) {
-                toast("Не открылись настройки источника: " + CarProbe.describe(t))
-            }
-            return
-        }
-        toast(if (force) "Переустанавливаю последнюю версию…" else "Проверяю обновление…")
+        // This ROM has no unknown-sources settings screen, so the app can't be the installer;
+        // the updater downloads the APK to Downloads and the user installs it via APKPure.
+        toast(if (force) "Скачиваю последнюю версию…" else "Проверяю обновление…")
         io.execute {
             // Any failure here used to be swallowed by the executor, so the button looked
             // like it did nothing. Catch everything and surface it.

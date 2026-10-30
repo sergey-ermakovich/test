@@ -100,16 +100,43 @@ class Updater(private val context: Context, private val log: (String) -> Unit) {
         return out
     }
 
-    /** Hands [apk] to the system installer / APKPure via an install intent. */
-    private fun installViaIntent(apk: File) {
-        val uri = FileProvider.getUriForFile(context, context.packageName + ".fileprovider", apk)
-        val intent = Intent(Intent.ACTION_VIEW).apply {
-            setDataAndType(uri, "application/vnd.android.package-archive")
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    /**
+     * Copies [apk] into the public Downloads folder under [name].apk. This ROM has no
+     * unknown-sources settings screen, so our app can't be the installer; instead the user
+     * opens the downloaded file in APKPure (which already holds the install permission).
+     * Returns the visible path, or null on failure.
+     */
+    private fun saveToDownloads(apk: File, name: String): String? {
+        return try {
+            val values = android.content.ContentValues().apply {
+                put(android.provider.MediaStore.Downloads.DISPLAY_NAME, "$name.apk")
+                put(android.provider.MediaStore.Downloads.MIME_TYPE, "application/vnd.android.package-archive")
+                put(android.provider.MediaStore.Downloads.RELATIVE_PATH, android.os.Environment.DIRECTORY_DOWNLOADS)
+            }
+            val resolver = context.contentResolver
+            val uri = resolver.insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+                ?: return null
+            resolver.openOutputStream(uri)?.use { out -> apk.inputStream().use { it.copyTo(out) } }
+            "Загрузки/$name.apk"
+        } catch (t: Throwable) {
+            log("Не удалось в Загрузки: " + CarProbe.describe(t))
+            null
         }
-        log("Открываю установщик…")
-        context.startActivity(intent)
+    }
+
+    /** Also tries to open the installer directly, in case some source on this device handles it. */
+    private fun tryOpenInstaller(apk: File) {
+        try {
+            val uri = FileProvider.getUriForFile(context, context.packageName + ".fileprovider", apk)
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, "application/vnd.android.package-archive")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+        } catch (_: Throwable) {
+            // No handler / blocked — the Downloads + APKPure path is the fallback.
+        }
     }
 
     /** Full flow used by the button. Safe to call off the UI thread. */
@@ -118,12 +145,12 @@ class Updater(private val context: Context, private val log: (String) -> Unit) {
         val cur = currentBuild()
         if (!force && rel.build in 0..cur) return "Уже последняя версия (build $cur)"
         val apk = download(rel)
-        return try {
-            installViaIntent(apk)
-            "Качает ${rel.tag}. Подтверди установку в появившемся окне."
-        } catch (t: Throwable) {
-            "Не удалось открыть установщик: " + CarProbe.describe(t)
-        }
-        // Note: the APK is kept (not deleted) — the installer reads it after we return.
+        val name = "ZeekrProbe-${rel.build}"
+        val where = saveToDownloads(apk, name)
+        tryOpenInstaller(apk)
+        return if (where != null)
+            "Скачано: $where\nОткрой APKPure → установка из файла → Загрузки → $name.apk"
+        else
+            "Скачал, но не смог положить в Загрузки — поставь вручную"
     }
 }
