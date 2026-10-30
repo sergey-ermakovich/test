@@ -26,6 +26,8 @@ jobs:
 
       # The platform-signed variant is built only when tools/platform-key/ is present.
       - name: Build APKs
+        env:
+          BUILD_NUMBER: ${{ github.run_number }}
         run: |
           if [ -f tools/platform-key/androiddebugkey.jks ]; then
             ./gradlew assembleDebug assemblePlatform --no-daemon --stacktrace

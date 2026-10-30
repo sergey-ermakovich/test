@@ -676,7 +676,13 @@ class MainActivity : Activity() {
     private fun updateApk(force: Boolean) {
         toast(if (force) "Переустанавливаю последнюю версию…" else "Проверяю обновление…")
         io.execute {
-            val result = Updater(this) { line -> toast(line) }.updateNow(force)
+            // Any failure here used to be swallowed by the executor, so the button looked
+            // like it did nothing. Catch everything and surface it.
+            val result = try {
+                Updater(this) { line -> toast(line) }.updateNow(force)
+            } catch (t: Throwable) {
+                "Сбой обновления: " + CarProbe.describe(t)
+            }
             toast(result)
         }
     }

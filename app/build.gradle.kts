@@ -11,8 +11,10 @@ android {
         applicationId = "com.zeekrprobe"
         minSdk = 28
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.1"
+        // versionCode is the CI run number (= the probe-N release tag), so self-update
+        // can tell "is the latest release newer than what's installed". 0 in local builds.
+        versionCode = (System.getenv("BUILD_NUMBER") ?: "0").toInt()
+        versionName = "0." + (System.getenv("BUILD_NUMBER") ?: "0")
     }
 
     // Optional: the public AOSP platform test key (platform.pk8 from AOSP, alias

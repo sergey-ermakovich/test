@@ -77,8 +77,10 @@ class Updater(private val context: Context, private val log: (String) -> Unit) {
         }
         val keyPair = AdbKeyPair.read(priv, pub)
         log("Подключаюсь к adb 127.0.0.1:5555…")
-        Dadb.create("127.0.0.1", 5555, keyPair).use { dadb ->
-            log("Ставлю APK через pm install…")
+        // connectTimeout / readTimeout in ms — without them a refused/filtered port hangs
+        // the button forever with no feedback.
+        Dadb.create("127.0.0.1", 5555, keyPair, 10_000, 120_000).use { dadb ->
+            log("Подключился, ставлю APK через pm install…")
             dadb.install(apk)
         }
         return "установлено"
