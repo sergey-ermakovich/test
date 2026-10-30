@@ -4,3 +4,7 @@ local.properties
 .idea/
 *.iml
 .kotlin/
+
+# App signing keystore — never commit; lives in a GitHub secret
+signing/
+*.jks

@@ -17,42 +17,28 @@ android {
         versionName = "0." + (System.getenv("BUILD_NUMBER") ?: "0")
     }
 
-    // Optional: the public AOSP platform test key (platform.pk8 from AOSP, alias
-    // "platformkey", password "android"). Zeekr OS userdebug builds are signed with it,
-    // so an APK signed the same way gets signature-level permissions such as
-    // android.car.permission.*. Drop it at tools/platform-key/androiddebugkey.jks to
-    // enable the extra "platform" build; nothing happens when the file is absent.
-    val platformKey = rootProject.file("tools/platform-key/androiddebugkey.jks")
-    if (platformKey.exists()) {
-        signingConfigs.create("platform") {
-            storeFile = platformKey
-            storePassword = "android"
-            keyAlias = "platformkey"
-            keyPassword = "android"
+    // One fixed signing key, restored by CI from a repo secret into signing/zeekrprobe.jks.
+    // Every build uses it, so self-update installs cleanly over the previous version — the
+    // default debug keystore is regenerated on each runner, which would break updates with
+    // a signature mismatch. Override the built-in "debug" config so `assembleDebug` uses it.
+    val appKey = rootProject.file("signing/zeekrprobe.jks")
+    val ksPass = System.getenv("KEYSTORE_PASSWORD")
+    signingConfigs.getByName("debug") {
+        if (appKey.exists() && !ksPass.isNullOrBlank()) {
+            storeFile = appKey
+            storePassword = ksPass
+            keyAlias = System.getenv("KEY_ALIAS") ?: "zeekrprobe"
+            keyPassword = System.getenv("KEY_PASSWORD") ?: ksPass
         }
     }
 
-    // Name and icon differ per build type so the two installs are telling apart on the DHU.
     defaultConfig.manifestPlaceholders["appIcon"] = "@android:drawable/ic_menu_compass"
     defaultConfig.resValue("string", "app_name", "Zeekr Probe")
 
     buildTypes {
         release {
             isMinifyEnabled = false
-            // Debug key on purpose: this is a throwaway probe, easier to sideload.
             signingConfig = signingConfigs.getByName("debug")
-        }
-        // Same app, platform-signed, separate package so both can be installed side by side
-        // and their reports compared. Only exists when the key is present.
-        if (platformKey.exists()) {
-            create("platform") {
-                initWith(getByName("debug"))
-                applicationIdSuffix = ".sys"
-                signingConfig = signingConfigs.getByName("platform")
-                matchingFallbacks += listOf("debug")
-                manifestPlaceholders["appIcon"] = "@android:drawable/ic_lock_lock"
-                resValue("string", "app_name", "Zeekr Probe SYS")
-            }
         }
     }
 

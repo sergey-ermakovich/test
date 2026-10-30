@@ -24,17 +24,22 @@ jobs:
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.0" "platform-tools"
 
-      # The platform-signed variant is built only when tools/platform-key/ is present.
+      # Restore the fixed app signing key from a repo secret so every build shares one
+      # identity and self-update installs over the previous version. Without the secret
+      # (e.g. a fork) the build falls back to a throwaway debug key.
+      - name: Restore signing key
+        if: ${{ secrets.SIGNING_KEYSTORE_B64 != '' }}
+        run: |
+          mkdir -p signing
+          echo "${{ secrets.SIGNING_KEYSTORE_B64 }}" | base64 -d > signing/zeekrprobe.jks
+
       - name: Build APKs
         env:
           BUILD_NUMBER: ${{ github.run_number }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
         run: |
-          if [ -f tools/platform-key/androiddebugkey.jks ]; then
-            ./gradlew :app:assembleDebug :app:assemblePlatform :netinfo:assembleDebug --no-daemon --stacktrace
-            cp app/build/outputs/apk/platform/app-platform.apk ZeekrProbe-${{ github.run_number }}-platform.apk
-          else
-            ./gradlew :app:assembleDebug :netinfo:assembleDebug --no-daemon --stacktrace
-          fi
+          ./gradlew :app:assembleDebug :netinfo:assembleDebug --no-daemon --stacktrace
           cp app/build/outputs/apk/debug/app-debug.apk ZeekrProbe-${{ github.run_number }}.apk
           cp netinfo/build/outputs/apk/debug/netinfo-debug.apk NetInfo-${{ github.run_number }}.apk
 
