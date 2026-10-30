@@ -64,6 +64,8 @@ fun DashboardScreen(
     car: CarState,
     stats: Stats,
     pending: Int,
+    updating: Boolean,
+    onUpdate: () -> Unit,
     onOpenProbe: () -> Unit,
 ) {
     Column(
@@ -143,6 +145,20 @@ fun DashboardScreen(
         }
 
         Spacer(Modifier.height(16.dp))
+        Button(
+            onClick = onUpdate,
+            enabled = !updating,
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(containerColor = Surface2, contentColor = TextHi),
+        ) {
+            Text(if (updating) "Скачиваю обновление…" else "⬇ Обновить приложение")
+        }
+        Text(
+            "Скачает свежий APK в «Загрузки» — поставишь из APKPure.",
+            color = TextLow, fontSize = 12.sp,
+            modifier = Modifier.padding(top = 6.dp),
+        )
+        Spacer(Modifier.height(8.dp))
         TextButton(onClick = onOpenProbe) {
             Text("Диагностика машины (ECARX)", color = TextMid)
         }

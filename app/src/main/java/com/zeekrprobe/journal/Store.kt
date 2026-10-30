@@ -82,8 +82,10 @@ object Store {
 
     // ---------------------------------------------------------------- settings
 
+    // Zeekr 7X AWD pack (owner: 103 kWh); used only to estimate kWh for an auto-detected
+    // charge when the user hasn't typed the numbers in. Editable in settings.
     var batteryKwh: Double
-        get() = prefs().getFloat("batteryKwh", 75f).toDouble()
+        get() = prefs().getFloat("batteryKwh", 103f).toDouble()
         set(v) { prefs().edit().putFloat("batteryKwh", v.toFloat()).apply() }
 
     fun lastPrice(network: String): Double? {

@@ -8,23 +8,27 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
 import com.zeekrprobe.MainActivity
+import com.zeekrprobe.Updater
 import com.zeekrprobe.journal.ui.Bg
 import com.zeekrprobe.journal.ui.Energy
 import com.zeekrprobe.journal.ui.EnergyDim
@@ -36,6 +40,7 @@ import com.zeekrprobe.journal.ui.DashboardScreen
 import com.zeekrprobe.journal.ui.HistoryScreen
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class JournalActivity : ComponentActivity() {
@@ -80,6 +85,25 @@ private fun AppRoot() {
     var tab by remember { mutableStateOf(Tab.DASHBOARD) }
     var showAdd by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<ChargeSession?>(null) }
+
+    val scope = rememberCoroutineScope()
+    var updating by remember { mutableStateOf(false) }
+    var updateMsg by remember { mutableStateOf<String?>(null) }
+    fun runUpdate() {
+        if (updating) return
+        updating = true
+        scope.launch {
+            val msg = withContext(Dispatchers.IO) {
+                try {
+                    Updater(context) {}.updateNow(force = true)
+                } catch (t: Throwable) {
+                    "Не удалось обновить: ${t.message ?: t.javaClass.simpleName}"
+                }
+            }
+            updating = false
+            updateMsg = msg
+        }
+    }
 
     // Poll the car while this screen is on.
     androidx.compose.runtime.LaunchedEffect(Unit) {
@@ -126,6 +150,8 @@ private fun AppRoot() {
                     car = car,
                     stats = stats,
                     pending = pending,
+                    updating = updating,
+                    onUpdate = { runUpdate() },
                     onOpenProbe = { context.startActivity(Intent(context, MainActivity::class.java)) },
                 )
             }
@@ -144,6 +170,18 @@ private fun AppRoot() {
             car = car,
             onDismiss = { showAdd = false; editing = null },
             onSaved = { showAdd = false; editing = null },
+        )
+    }
+
+    updateMsg?.let { msg ->
+        AlertDialog(
+            onDismissRequest = { updateMsg = null },
+            confirmButton = {
+                TextButton(onClick = { updateMsg = null }) { Text("Ок", color = Energy) }
+            },
+            title = { Text("Обновление") },
+            text = { Text(msg) },
+            containerColor = com.zeekrprobe.journal.ui.Surface1,
         )
     }
 }
