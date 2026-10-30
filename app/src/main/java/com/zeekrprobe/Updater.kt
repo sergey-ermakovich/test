@@ -60,7 +60,7 @@ class Updater(private val context: Context, private val log: (String) -> Unit) {
         conn.instanceFollowRedirects = true
         conn.connectTimeout = 15000
         conn.readTimeout = 60000
-        conn.inputStream.use { input -> out.outputStream.use { input.copyTo(it) } }
+        conn.inputStream.use { input -> out.outputStream().use { input.copyTo(it) } }
         log("Скачано ${out.length() / 1024} КБ")
         return out
     }
