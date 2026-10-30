@@ -211,6 +211,12 @@ private fun TripCard(
             }
             Spacer(Modifier.height(10.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                SegMetric(trip.consumptionPer100?.let { num1(it) } ?: "—", "кВт·ч/100", Energy)
+                SegMetric(trip.kwhUsed?.let { num1(it) } ?: "—", "кВт·ч съедено", Amber)
+                SegMetric(trip.socUsedPct?.let { "${it.toInt()}%" } ?: "—", "заряда", Violet)
+            }
+            Spacer(Modifier.height(10.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 SegMetric("${trip.speedEcarx.toInt()}", "км/ч прибор", Amber)
                 SegMetric("${trip.speedGps.toInt()}", "км/ч GPS", Energy)
             }

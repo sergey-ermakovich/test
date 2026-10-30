@@ -71,7 +71,7 @@ class TripService : Service(), LocationListener {
         loop = scope.launch {
             while (scope.isActive) {
                 val s = try { CarRepo.refresh() } catch (_: Throwable) { CarState() }
-                try { TripRecorder.addRow(s.speedKmh, lastLoc, s.odometerKm) } catch (_: Throwable) {}
+                try { TripRecorder.addRow(s.speedKmh, lastLoc, s.odometerKm, s.socPercent, s.outsideC) } catch (_: Throwable) {}
                 notify(buildNotification(TripRecorder.state.value))
                 delay(1000)
             }
