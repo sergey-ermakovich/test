@@ -27,11 +27,18 @@ jobs:
       # Restore the fixed app signing key from a repo secret so every build shares one
       # identity and self-update installs over the previous version. Without the secret
       # (e.g. a fork) the build falls back to a throwaway debug key.
+      # (secrets can't be used in a step `if:`, so guard inside the script instead.)
       - name: Restore signing key
-        if: ${{ secrets.SIGNING_KEYSTORE_B64 != '' }}
+        env:
+          KS_B64: ${{ secrets.SIGNING_KEYSTORE_B64 }}
         run: |
-          mkdir -p signing
-          echo "${{ secrets.SIGNING_KEYSTORE_B64 }}" | base64 -d > signing/zeekrprobe.jks
+          if [ -n "$KS_B64" ]; then
+            mkdir -p signing
+            echo "$KS_B64" | base64 -d > signing/zeekrprobe.jks
+            echo "signing key restored"
+          else
+            echo "no signing secret — falling back to throwaway debug key"
+          fi
 
       - name: Build APKs
         env:
