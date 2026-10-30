@@ -108,12 +108,8 @@ class EcarxProbe(private val context: Context) {
         }
         val t0 = System.currentTimeMillis()
         try {
-            val carClass = Class.forName(CAR_CLASS)
-            val create = carClass.methods.firstOrNull { it.name == "create" && it.parameterTypes.size == 1 }
-                ?: run { connectError = "у Car нет create(Context)"; return false }
-            val c = create.invoke(null, context)
-            if (c == null) {
-                connectError = "Car.create(context) вернул null — сервис ещё не поднялся или недоступен"
+            val c = createCar() ?: run {
+                connectError = "не удалось создать Car:\n" + createLog.toString().trimEnd()
                 return false
             }
             car = c
@@ -140,6 +136,110 @@ class EcarxProbe(private val context: Context) {
             connectError = CarProbe.describe(t)
             return false
         }
+    }
+
+    private val createLog = StringBuilder()
+
+    /**
+     * The firmware on this car doesn't expose the one-arg Car.create(Context) the
+     * overseas builds have, so try every static factory-looking method on Car and on
+     * the known impl classes, passing the Context where it fits and nulls elsewhere.
+     */
+    private fun createCar(): Any? {
+        val classes = listOf(
+            CAR_CLASS,
+            "com.zeekrlife.adaptapi.car.impl.CarImpl",
+            "com.zeekrlife.adaptapi.car.CarImpl",
+            "com.ecarx.xui.adaptapi.car.impl.CarImpl",
+            "com.zeekrlife.adaptapi.car.impl.Car",
+            "com.zeekrlife.adaptapi.car.Car",
+            "com.ecarx.xui.adaptapi.car.CarFactory",
+        )
+        for (cn in classes) {
+            val cls = try { Class.forName(cn) } catch (_: Throwable) { continue }
+            createLog.append("  класс ").append(cn).append(": есть\n")
+            val statics = cls.methods.filter { java.lang.reflect.Modifier.isStatic(it.modifiers) && it.returnType != Void.TYPE }
+                .sortedWith(compareBy({ it.name != "create" }, { it.name != "getInstance" }, { it.parameterTypes.size }))
+            for (m in statics) {
+                val params = m.parameterTypes
+                val takesContext = params.any { it.isAssignableFrom(Context::class.java) }
+                if (!takesContext && params.isNotEmpty()) continue
+                val args = params.map { p ->
+                    when {
+                        p.isAssignableFrom(Context::class.java) -> context
+                        p == Int::class.javaPrimitiveType -> 0
+                        p == Boolean::class.javaPrimitiveType -> false
+                        p == Long::class.javaPrimitiveType -> 0L
+                        else -> null
+                    }
+                }.toTypedArray()
+                val sig = m.name + "(" + params.joinToString { it.simpleName } + ")"
+                try {
+                    val r = m.invoke(null, *args)
+                    if (r != null) {
+                        createLog.append("  ").append(sig).append(" → ").append(r.javaClass.name).append(" ✓\n")
+                        return r
+                    }
+                    createLog.append("  ").append(sig).append(" → null\n")
+                } catch (t: Throwable) {
+                    createLog.append("  ").append(sig).append(" → ").append(CarProbe.describe(t)).append('\n')
+                }
+            }
+            if (statics.isEmpty()) createLog.append("    статических методов нет\n")
+        }
+        return null
+    }
+
+    /** Everything reflection can tell about the Car class: what to call next time. */
+    fun describeCarClass(): String {
+        val sb = StringBuilder()
+        val cls = try { Class.forName(CAR_CLASS) } catch (t: Throwable) { return "  " + CarProbe.describe(t) + "\n" }
+        sb.append("  ").append(cls.name).append(" extends ").append(cls.superclass?.name)
+            .append(" implements ").append(cls.interfaces.joinToString { it.name }).append('\n')
+        sb.append("  modifiers: ").append(java.lang.reflect.Modifier.toString(cls.modifiers)).append('\n')
+        for (m in cls.declaredMethods.sortedBy { it.name }) {
+            sb.append("    ").append(java.lang.reflect.Modifier.toString(m.modifiers)).append(' ')
+                .append(m.returnType.simpleName).append(' ').append(m.name)
+                .append('(').append(m.parameterTypes.joinToString { it.name }).append(")\n")
+        }
+        for (f in cls.declaredFields) {
+            sb.append("    field ").append(java.lang.reflect.Modifier.toString(f.modifiers)).append(' ')
+                .append(f.type.simpleName).append(' ').append(f.name).append('\n')
+        }
+        for (c in cls.declaredConstructors) {
+            sb.append("    ctor(").append(c.parameterTypes.joinToString { it.name }).append(")\n")
+        }
+        return sb.toString()
+    }
+
+    /** Lists AdaptAPI-looking classes on the boot classpath, so the next probe knows what exists. */
+    fun listApiClasses(): String {
+        val sb = StringBuilder()
+        val jars = (System.getProperty("java.boot.class.path") ?: "").split(':')
+        sb.append("  boot classpath (").append(jars.size).append(" jar):\n")
+        jars.filter { p -> listOf("ecarx", "adapt", "zeekr", "geely", "car").any { p.lowercase().contains(it) } }
+            .forEach { sb.append("    ").append(it).append('\n') }
+        val names = ArrayList<String>()
+        for (jar in jars) {
+            if (!listOf("ecarx", "adapt", "zeekr", "geely").any { jar.lowercase().contains(it) }) continue
+            try {
+                @Suppress("DEPRECATION")
+                val dex = dalvik.system.DexFile(jar)
+                val e = dex.entries()
+                while (e.hasMoreElements()) names += e.nextElement()
+                dex.close()
+            } catch (t: Throwable) {
+                sb.append("    DexFile(").append(jar).append("): ").append(CarProbe.describe(t)).append('\n')
+            }
+        }
+        val interesting = names.filter { n ->
+            !n.contains('$') && listOf("car.Car", "CarImpl", "Factory", "ICar", "ISensor", "ICarFunction", "CarInfo", "Manager", "Service")
+                .any { n.contains(it) }
+        }.sorted()
+        sb.append("  классов в адаптерных jar: ").append(names.size).append(", из них похожих на точки входа: ").append(interesting.size).append('\n')
+        interesting.take(150).forEach { sb.append("    ").append(it).append('\n') }
+        if (interesting.size > 150) sb.append("    … ещё ").append(interesting.size - 150).append('\n')
+        return sb.toString()
     }
 
     // ---------------------------------------------------------------- reads
@@ -183,6 +283,8 @@ class EcarxProbe(private val context: Context) {
         val sb = StringBuilder()
         if (!connect()) {
             sb.append("ECARX AdaptAPI: НЕ ПОДКЛЮЧИЛСЯ\n  ").append(connectError).append('\n')
+            sb.append("\nКласс Car целиком:\n").append(describeCarClass())
+            sb.append("\nЧто есть в адаптерных jar:\n").append(listApiClasses())
             sb.append(altSdkPresence())
             return sb.toString()
         }

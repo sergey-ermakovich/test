@@ -385,15 +385,29 @@ class MainActivity : Activity() {
         b.append("ro.adb.secure = ").append(secure).append("   ro.debuggable = ").append(debuggable)
             .append("   ro.build.type = ").append(buildType).append('\n')
         b.append("Сборка прошивки: ").append(sysProp("ro.build.display.id")).append('\n')
+        b.append("Выдать runtime-разрешения car-service через adb:\n")
+        b.append("  adb shell pm grant ").append(packageName).append(" android.car.permission.CAR_SPEED\n")
+        b.append("  adb shell pm grant ").append(packageName).append(" android.car.permission.CAR_ENERGY\n")
         b.append("IP-адреса машины (для adb connect):\n")
         try {
-            val ifaces = java.net.NetworkInterface.getNetworkInterfaces()
+            val ifaces = java.net.NetworkInterface.getNetworkInterfaces()?.toList() ?: emptyList()
+            if (ifaces.isEmpty()) b.append("  (интерфейсы не видны)\n")
             for (ni in ifaces) {
-                for (addr in ni.inetAddresses) {
+                val addrs = try { ni.inetAddresses?.toList() ?: emptyList() } catch (_: Throwable) { emptyList() }
+                for (addr in addrs) {
                     if (!addr.isLoopbackAddress && addr is java.net.Inet4Address) {
                         b.append("  ").append(ni.name).append(" ").append(addr.hostAddress).append('\n')
                     }
                 }
+            }
+            // Fallback: Wi-Fi manager knows its own address even when interfaces are hidden.
+            try {
+                @Suppress("DEPRECATION")
+                val wm = applicationContext.getSystemService(Context.WIFI_SERVICE) as android.net.wifi.WifiManager
+                @Suppress("DEPRECATION")
+                val ip = wm.connectionInfo.ipAddress
+                if (ip != 0) b.append("  wifi %d.%d.%d.%d\n".format(ip and 0xff, ip shr 8 and 0xff, ip shr 16 and 0xff, ip shr 24 and 0xff))
+            } catch (_: Throwable) {
             }
         } catch (t: Throwable) {
             b.append("  ").append(CarProbe.describe(t)).append('\n')
