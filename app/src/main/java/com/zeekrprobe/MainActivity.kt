@@ -148,6 +148,9 @@ class MainActivity : Activity() {
         buttons.addView(button("Разрешения") { requestMissingPermissions(force = true) })
         buttons.addView(button("Сохранить") { saveReport() })
         buttons.addView(button("Поделиться") { shareReport() })
+        buttons.addView(button("Выгрузить") { uploadReport() }.apply {
+            setOnLongClickListener { editUploadTarget(); true }
+        })
         root.addView(buttons)
 
         live = TextView(this).apply {
@@ -587,6 +590,65 @@ class MainActivity : Activity() {
         } catch (t: Throwable) {
             toast("Некуда отправить: " + CarProbe.describe(t))
         }
+    }
+
+    // ---------------------------------------------------------------- upload to server/upload.php
+    // The head unit's file manager won't let reports be saved or copied, so POST them
+    // to the owner's own PHP drop box. Address and token are typed once in the app and
+    // kept in its private prefs; nothing is baked into the APK.
+
+    private val prefs by lazy { getSharedPreferences("probe", MODE_PRIVATE) }
+    private fun uploadUrl() = prefs.getString("url", "") ?: ""
+    private fun uploadToken() = prefs.getString("token", "") ?: ""
+
+    private fun uploadReport() {
+        val url = uploadUrl()
+        if (url.isBlank()) {
+            toast("Адрес сервера не задан — введи его в окне")
+            editUploadTarget()
+            return
+        }
+        val text = lastReport.ifEmpty { report.text.toString() }
+        toast("Отправляю…")
+        io.execute {
+            val result = try {
+                val full = url + (if (url.contains('?')) "&" else "?") +
+                    "token=" + java.net.URLEncoder.encode(uploadToken(), "UTF-8") +
+                    "&name=" + java.net.URLEncoder.encode(packageName.substringAfterLast('.'), "UTF-8")
+                val conn = java.net.URL(full).openConnection() as java.net.HttpURLConnection
+                conn.requestMethod = "POST"
+                conn.connectTimeout = 15000
+                conn.readTimeout = 30000
+                conn.doOutput = true
+                conn.setRequestProperty("Content-Type", "text/plain; charset=utf-8")
+                conn.outputStream.use { it.write(text.toByteArray()) }
+                val code = conn.responseCode
+                val body = (if (code < 400) conn.inputStream else conn.errorStream)
+                    ?.bufferedReader()?.readText()?.trim() ?: ""
+                "HTTP $code: $body"
+            } catch (t: Throwable) {
+                "Ошибка: " + CarProbe.describe(t)
+            }
+            toast(result)
+        }
+    }
+
+    private fun editUploadTarget() {
+        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(16), dp(8), dp(16), 0) }
+        val urlField = android.widget.EditText(this).apply { hint = "https://host/zeekr/upload.php"; setText(uploadUrl()) }
+        val tokenField = android.widget.EditText(this).apply { hint = "token"; setText(uploadToken()) }
+        box.addView(urlField)
+        box.addView(tokenField)
+        android.app.AlertDialog.Builder(this)
+            .setTitle("Куда выгружать отчёт")
+            .setView(box)
+            .setPositiveButton("Сохранить") { _, _ ->
+                prefs.edit().putString("url", urlField.text.toString().trim())
+                    .putString("token", tokenField.text.toString().trim()).apply()
+                toast("Сохранено")
+            }
+            .setNegativeButton("Отмена", null)
+            .show()
     }
 
     private fun toast(msg: String) = ui.post { Toast.makeText(this, msg, Toast.LENGTH_LONG).show() }
