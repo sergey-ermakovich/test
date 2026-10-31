@@ -116,6 +116,29 @@ object Exchange {
         return code < 400
     }
 
+    /** Deletes our own copy of [name] from public Downloads. Works for files this app saved. */
+    fun deleteLocal(context: Context, name: String): Boolean {
+        return try {
+            val proj = arrayOf(MediaStore.MediaColumns._ID)
+            val sel = MediaStore.MediaColumns.DISPLAY_NAME + "=?"
+            var deleted = 0
+            context.contentResolver.query(
+                MediaStore.Downloads.EXTERNAL_CONTENT_URI, proj, sel, arrayOf(name), null,
+            )?.use { c ->
+                val idi = c.getColumnIndexOrThrow(MediaStore.MediaColumns._ID)
+                while (c.moveToNext()) {
+                    val uri = android.content.ContentUris.withAppendedId(
+                        MediaStore.Downloads.EXTERNAL_CONTENT_URI, c.getLong(idi),
+                    )
+                    deleted += context.contentResolver.delete(uri, null, null)
+                }
+            }
+            deleted > 0
+        } catch (_: Throwable) {
+            false
+        }
+    }
+
     /** Names (→ size) already present in the public Downloads folder that this app can see. */
     fun localIndex(context: Context): Map<String, Long> {
         val map = HashMap<String, Long>()
