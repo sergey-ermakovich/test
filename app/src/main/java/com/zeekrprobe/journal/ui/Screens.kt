@@ -68,6 +68,7 @@ fun DashboardScreen(
     onStartTrip: () -> Unit,
     onStopTrip: () -> Unit,
     updating: Boolean,
+    updateProgress: String?,
     onUpdate: () -> Unit,
     onOpenProbe: () -> Unit,
 ) {
@@ -157,7 +158,7 @@ fun DashboardScreen(
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(containerColor = Surface2, contentColor = TextHi),
         ) {
-            Text(if (updating) "Скачиваю обновление…" else "⬇ Обновить приложение")
+            Text(if (updating) (updateProgress ?: "Скачиваю обновление…") else "⬇ Обновить приложение")
         }
         Text(
             "Скачает свежий APK в «Загрузки» — поставишь из APKPure.",

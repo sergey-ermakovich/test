@@ -99,19 +99,22 @@ private fun AppRoot() {
 
     val scope = rememberCoroutineScope()
     var updating by remember { mutableStateOf(false) }
+    var updateProgress by remember { mutableStateOf<String?>(null) }
     var updateMsg by remember { mutableStateOf<String?>(null) }
     fun runUpdate() {
         if (updating) return
         updating = true
+        updateProgress = "Соединяюсь…"
         scope.launch {
             val msg = withContext(Dispatchers.IO) {
                 try {
-                    Updater(context) {}.updateNow(force = true)
+                    Updater(context) { line -> updateProgress = line }.updateNow(force = true)
                 } catch (t: Throwable) {
                     "Не удалось обновить: ${t.message ?: t.javaClass.simpleName}"
                 }
             }
             updating = false
+            updateProgress = null
             updateMsg = msg
         }
     }
@@ -165,6 +168,7 @@ private fun AppRoot() {
                     onStartTrip = { TripService.start(context) },
                     onStopTrip = { TripService.stop(context) },
                     updating = updating,
+                    updateProgress = updateProgress,
                     onUpdate = { runUpdate() },
                     onOpenProbe = { context.startActivity(Intent(context, MainActivity::class.java)) },
                 )

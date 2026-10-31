@@ -95,7 +95,28 @@ class Updater(private val context: Context, private val log: (String) -> Unit) {
             }
             else -> first
         }
-        conn.inputStream.use { input -> out.outputStream().use { input.copyTo(it) } }
+        val total = try { conn.contentLengthLong } catch (_: Throwable) { -1L }
+        var read = 0L
+        var lastPct = -1
+        var lastKb = 0L
+        val buf = ByteArray(32 * 1024)
+        conn.inputStream.use { input ->
+            out.outputStream().use { os ->
+                while (true) {
+                    val n = input.read(buf)
+                    if (n < 0) break
+                    os.write(buf, 0, n)
+                    read += n
+                    if (total > 0) {
+                        val pct = (read * 100 / total).toInt()
+                        if (pct != lastPct) { lastPct = pct; log("Скачиваю… $pct%") }
+                    } else {
+                        val kb = read / 1024
+                        if (kb - lastKb >= 256) { lastKb = kb; log("Скачиваю… $kb КБ") }
+                    }
+                }
+            }
+        }
         log("Скачано ${out.length() / 1024} КБ")
         return out
     }
