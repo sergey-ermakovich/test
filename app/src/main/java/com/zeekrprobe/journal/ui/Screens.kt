@@ -1,7 +1,9 @@
 package com.zeekrprobe.journal.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -20,8 +22,21 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Bolt
+import androidx.compose.material.icons.rounded.CalendarMonth
+import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material.icons.rounded.Payments
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Savings
+import androidx.compose.material.icons.rounded.Speed
+import androidx.compose.material.icons.rounded.Stop
+import androidx.compose.material.icons.rounded.Straighten
+import androidx.compose.material.icons.rounded.Thermostat
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -35,6 +50,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -97,9 +113,9 @@ fun DashboardScreen(
 
         // Live car line.
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-            MiniStat("одометр", car.odometerKm?.let { "${it.toInt()}" } ?: "—", "км", Violet)
-            MiniStat("скорость", car.speedKmh?.let { "${it.toInt()}" } ?: "0", "км/ч", Energy)
-            MiniStat("на улице", num1(car.outsideC), "°C", Amber)
+            MiniStat(Icons.Rounded.Straighten, "одометр", car.odometerKm?.let { "${it.toInt()}" } ?: "—", "км")
+            MiniStat(Icons.Rounded.Speed, "скорость", car.speedKmh?.let { "${it.toInt()}" } ?: "0", "км/ч")
+            MiniStat(Icons.Rounded.Thermostat, "на улице", num1(car.outsideC), "°C")
         }
 
         Spacer(Modifier.height(16.dp))
@@ -109,36 +125,28 @@ fun DashboardScreen(
                 Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = EnergyDim),
+                border = BorderStroke(1.dp, Outline),
             ) {
-                Text(
-                    "⚡ Похоже, была зарядка ($pending) — загляни во вкладку «Зарядки», подтверди и впиши цену.",
-                    color = TextHi, fontSize = 17.sp, modifier = Modifier.padding(16.dp),
-                )
+                Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Rounded.Bolt, null, tint = Energy, modifier = Modifier.size(22.dp))
+                    Text(
+                        "  Похоже, была зарядка ($pending) — открой «Зарядки», подтверди и впиши цену.",
+                        color = TextHi, fontSize = 16.sp,
+                    )
+                }
             }
             Spacer(Modifier.height(16.dp))
         }
 
         // KPI tiles.
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            StatTile(
-                "⚡", num1(stats.consumptionPer100), "кВт·ч / 100 км", Energy,
-                modifier = Modifier.weight(1f),
-            )
-            StatTile(
-                "₽", money(stats.costPerKm), "руб / км", Amber,
-                modifier = Modifier.weight(1f),
-            )
+            StatTile(Icons.Rounded.Bolt, num1(stats.consumptionPer100), "кВт·ч / 100 км", Energy, Modifier.weight(1f))
+            StatTile(Icons.Rounded.Payments, money(stats.costPerKm), "руб / км", Amber, Modifier.weight(1f))
         }
         Spacer(Modifier.height(12.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            StatTile(
-                "📅", money(stats.spentMonth), "потрачено за месяц", Violet,
-                modifier = Modifier.weight(1f),
-            )
-            StatTile(
-                "Σ", money(stats.spentTotal), "всего на зарядку", TextHi,
-                modifier = Modifier.weight(1f),
-            )
+            StatTile(Icons.Rounded.CalendarMonth, money(stats.spentMonth), "потрачено за месяц", Violet, Modifier.weight(1f))
+            StatTile(Icons.Rounded.Savings, money(stats.spentTotal), "всего на зарядку", Energy, Modifier.weight(1f))
         }
 
         Spacer(Modifier.height(16.dp))
@@ -158,7 +166,12 @@ fun DashboardScreen(
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(containerColor = Surface2, contentColor = TextHi),
         ) {
-            Text(if (updating) (updateProgress ?: "Скачиваю обновление…") else "⬇ Обновить приложение")
+            if (updating) {
+                Text(updateProgress ?: "Скачиваю обновление…")
+            } else {
+                Icon(Icons.Rounded.Download, null, modifier = Modifier.size(18.dp))
+                Text("  Обновить приложение")
+            }
         }
         Text(
             "Скачает свежий APK в «Загрузки» — поставишь из APKPure.",
@@ -174,13 +187,14 @@ fun DashboardScreen(
 }
 
 @Composable
-private fun MiniStat(label: String, value: String, unit: String, accent: Color) {
+private fun MiniStat(icon: ImageVector, label: String, value: String, unit: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Row(verticalAlignment = Alignment.Bottom) {
-            Text(value, color = accent, fontWeight = FontWeight.Bold, fontSize = 22.sp)
-            Text(" $unit", color = TextMid, fontSize = 15.sp, modifier = Modifier.padding(bottom = 3.dp))
+        Icon(icon, null, tint = TextMid, modifier = Modifier.size(18.dp))
+        Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.padding(top = 4.dp)) {
+            Text(value, color = TextHi, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+            Text(" $unit", color = TextMid, fontSize = 14.sp, modifier = Modifier.padding(bottom = 3.dp))
         }
-        Text(label, color = TextMid, fontSize = 15.sp)
+        Text(label, color = TextMid, fontSize = 14.sp)
     }
 }
 
@@ -201,7 +215,10 @@ private fun TripCard(
                 onClick = onStart,
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(containerColor = Energy, contentColor = Bg),
-            ) { Text("▶ Начать поездку", fontWeight = FontWeight.SemiBold) }
+            ) {
+                Icon(Icons.Rounded.PlayArrow, null, modifier = Modifier.size(20.dp))
+                Text("  Начать поездку", fontWeight = FontWeight.SemiBold)
+            }
         } else {
             val mm = trip.seconds / 60
             val ss = trip.seconds % 60
@@ -225,8 +242,11 @@ private fun TripCard(
             Button(
                 onClick = onStop,
                 modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = Bad, contentColor = TextHi),
-            ) { Text("⏹ Остановить запись", fontWeight = FontWeight.SemiBold) }
+                colors = ButtonDefaults.buttonColors(containerColor = Bad, contentColor = Color(0xFFFFFFFF)),
+            ) {
+                Icon(Icons.Rounded.Stop, null, modifier = Modifier.size(20.dp))
+                Text("  Остановить запись", fontWeight = FontWeight.SemiBold)
+            }
         }
     }
 }
@@ -263,6 +283,7 @@ private fun ChargeRow(c: ChargeSession, onEdit: (ChargeSession) -> Unit) {
         colors = CardDefaults.cardColors(
             containerColor = if (needsAttention) EnergyDim else Surface1,
         ),
+        border = BorderStroke(1.dp, Outline),
     ) {
         Row(
             Modifier.padding(16.dp).fillMaxWidth(),
@@ -320,6 +341,7 @@ private fun SegmentRow(seg: Segment) {
         Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = Surface1),
+        border = BorderStroke(1.dp, Outline),
     ) {
         Column(Modifier.padding(16.dp)) {
             Text(
@@ -342,10 +364,10 @@ private fun SegmentRow(seg: Segment) {
 }
 
 @Composable
-private fun SegMetric(value: String, label: String, accent: Color) {
+private fun SegMetric(value: String, label: String, accent: Color = TextHi) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(value, color = accent, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-        Text(label, color = TextMid, fontSize = 15.sp)
+        Text(value, color = TextHi, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+        Text(label, color = TextMid, fontSize = 14.sp)
     }
 }
 
@@ -410,9 +432,10 @@ fun AddChargeDialog(
                         Row(
                             Modifier.padding(16.dp).fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(Network.title(network), color = TextHi, fontSize = 18.sp)
-                            Text("▾", color = TextMid, fontSize = 18.sp)
+                            Icon(Icons.Rounded.KeyboardArrowDown, null, tint = TextMid)
                         }
                     }
                     DropdownMenu(expanded = netMenu, onDismissRequest = { netMenu = false }) {
@@ -511,7 +534,7 @@ private fun NumField(
         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = keyboard),
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = Energy,
-            unfocusedBorderColor = Color(0xFF2B3340),
+            unfocusedBorderColor = Outline,
             focusedLabelColor = Energy,
             unfocusedLabelColor = TextMid,
             focusedTextColor = TextHi,

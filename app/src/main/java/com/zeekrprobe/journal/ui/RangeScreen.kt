@@ -144,7 +144,7 @@ fun RangeScreen(
                 modifier = Modifier.fillMaxWidth(),
                 keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Number),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Energy, unfocusedBorderColor = Color(0xFF2B3340),
+                    focusedBorderColor = Energy, unfocusedBorderColor = Outline,
                     focusedLabelColor = Energy, unfocusedLabelColor = TextMid,
                     focusedTextColor = TextHi, unfocusedTextColor = TextHi, cursorColor = Energy,
                 ),
@@ -179,7 +179,7 @@ fun RangeScreen(
 private fun ModeTile(label: String, km: Int, accent: Color, modifier: Modifier = Modifier) {
     SectionCard(modifier = modifier) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-            Text("$km", color = accent, fontWeight = FontWeight.Bold, fontSize = 26.sp)
+            Text("$km", color = TextHi, fontWeight = FontWeight.Bold, fontSize = 26.sp)
             Text("км", color = TextMid, fontSize = 15.sp)
             Text(label, color = TextMid, fontSize = 15.sp, modifier = Modifier.padding(top = 2.dp))
         }

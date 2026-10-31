@@ -8,8 +8,15 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Bolt
+import androidx.compose.material.icons.rounded.Home
+import androidx.compose.material.icons.rounded.Navigation
+import androidx.compose.material.icons.rounded.Route
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
@@ -24,6 +31,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
@@ -75,11 +83,11 @@ class JournalActivity : ComponentActivity() {
     }
 }
 
-private enum class Tab(val title: String, val emoji: String) {
-    DASHBOARD("Главная", "🏠"),
-    CHARGES("Зарядки", "⚡"),
-    HISTORY("История", "🛣"),
-    RANGE("Запас", "🧭"),
+private enum class Tab(val title: String, val icon: ImageVector) {
+    DASHBOARD("Главная", Icons.Rounded.Home),
+    CHARGES("Зарядки", Icons.Rounded.Bolt),
+    HISTORY("История", Icons.Rounded.Route),
+    RANGE("Запас", Icons.Rounded.Navigation),
 }
 
 @Composable
@@ -135,7 +143,7 @@ private fun AppRoot() {
                     NavigationBarItem(
                         selected = tab == t,
                         onClick = { tab = t },
-                        icon = { Text(t.emoji, fontSize = 18.sp) },
+                        icon = { Icon(t.icon, contentDescription = t.title) },
                         label = { Text(t.title) },
                         colors = NavigationBarItemDefaults.colors(
                             selectedIconColor = Energy,
@@ -153,7 +161,7 @@ private fun AppRoot() {
                 FloatingActionButton(
                     onClick = { editing = null; showAdd = true },
                     containerColor = Energy,
-                ) { Text("+", fontSize = 28.sp, color = Bg) }
+                ) { Icon(Icons.Rounded.Add, contentDescription = "Добавить", tint = Bg) }
             }
         },
     ) { pad ->
