@@ -90,7 +90,7 @@ fun DashboardScreen(
         if (!car.connected) {
             Text(
                 "Нет связи с машиной (ECARX). Данные появятся на запущенном авто.",
-                color = TextMid, fontSize = 13.sp,
+                color = TextMid, fontSize = 17.sp,
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
             )
         }
@@ -112,7 +112,7 @@ fun DashboardScreen(
             ) {
                 Text(
                     "⚡ Похоже, была зарядка ($pending) — загляни во вкладку «Зарядки», подтверди и впиши цену.",
-                    color = TextHi, fontSize = 14.sp, modifier = Modifier.padding(16.dp),
+                    color = TextHi, fontSize = 17.sp, modifier = Modifier.padding(16.dp),
                 )
             }
             Spacer(Modifier.height(16.dp))
@@ -162,7 +162,7 @@ fun DashboardScreen(
         }
         Text(
             "Скачает свежий APK в «Загрузки» — поставишь из APKPure.",
-            color = TextLow, fontSize = 12.sp,
+            color = TextLow, fontSize = 15.sp,
             modifier = Modifier.padding(top = 6.dp),
         )
         Spacer(Modifier.height(8.dp))
@@ -178,9 +178,9 @@ private fun MiniStat(label: String, value: String, unit: String, accent: Color) 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Row(verticalAlignment = Alignment.Bottom) {
             Text(value, color = accent, fontWeight = FontWeight.Bold, fontSize = 22.sp)
-            Text(" $unit", color = TextMid, fontSize = 12.sp, modifier = Modifier.padding(bottom = 3.dp))
+            Text(" $unit", color = TextMid, fontSize = 15.sp, modifier = Modifier.padding(bottom = 3.dp))
         }
-        Text(label, color = TextMid, fontSize = 12.sp)
+        Text(label, color = TextMid, fontSize = 15.sp)
     }
 }
 
@@ -194,7 +194,7 @@ private fun TripCard(
         if (trip == null) {
             Text(
                 "Сравнивает спидометр с GPS и проверяет одометр. Пишется в фоне — можно свернуть на карту или музыку, запись не прервётся.",
-                color = TextMid, fontSize = 13.sp,
+                color = TextMid, fontSize = 17.sp,
             )
             Spacer(Modifier.height(12.dp))
             Button(
@@ -271,26 +271,26 @@ private fun ChargeRow(c: ChargeSession, onEdit: (ChargeSession) -> Unit) {
             Column(Modifier.weight(1f)) {
                 Text(
                     Network.title(c.network),
-                    color = TextHi, fontWeight = FontWeight.SemiBold, fontSize = 16.sp,
+                    color = TextHi, fontWeight = FontWeight.SemiBold, fontSize = 18.sp,
                 )
-                Text(dateFmt.format(Date(c.timestamp)), color = TextMid, fontSize = 12.sp)
+                Text(dateFmt.format(Date(c.timestamp)), color = TextMid, fontSize = 15.sp)
                 val bits = buildList {
                     c.effectiveKwh()?.let { add("${num1(it)} кВт·ч") }
                     c.effectivePrice()?.let { add("${money(it)} ₽/кВт·ч") }
                     c.odometerKm?.let { add("${it.toInt()} км") }
                 }
                 if (bits.isNotEmpty()) {
-                    Text(bits.joinToString(" · "), color = TextMid, fontSize = 13.sp,
+                    Text(bits.joinToString(" · "), color = TextMid, fontSize = 17.sp,
                         modifier = Modifier.padding(top = 4.dp))
                 }
                 if (needsAttention) {
-                    Text("нужно подтвердить", color = Energy, fontSize = 12.sp,
+                    Text("нужно подтвердить", color = Energy, fontSize = 15.sp,
                         modifier = Modifier.padding(top = 4.dp))
                 }
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text(money(c.effectiveCost()), color = Amber, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                Text("руб", color = TextMid, fontSize = 11.sp)
+                Text("руб", color = TextMid, fontSize = 15.sp)
             }
         }
     }
@@ -328,7 +328,7 @@ private fun SegmentRow(seg: Segment) {
             )
             Text(
                 "${dateFmt.format(Date(seg.from.timestamp))} — ${dateFmt.format(Date(seg.to.timestamp))}",
-                color = TextMid, fontSize = 12.sp,
+                color = TextMid, fontSize = 15.sp,
             )
             Spacer(Modifier.height(10.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -344,8 +344,8 @@ private fun SegmentRow(seg: Segment) {
 @Composable
 private fun SegMetric(value: String, label: String, accent: Color) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(value, color = accent, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-        Text(label, color = TextMid, fontSize = 11.sp)
+        Text(value, color = accent, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+        Text(label, color = TextMid, fontSize = 15.sp)
     }
 }
 
@@ -400,7 +400,7 @@ fun AddChargeDialog(
                 Spacer(Modifier.height(16.dp))
 
                 // Network dropdown.
-                Text("Сеть", color = TextMid, fontSize = 13.sp)
+                Text("Сеть", color = TextMid, fontSize = 17.sp)
                 Box {
                     Card(
                         Modifier.fillMaxWidth().clickable { netMenu = true }.padding(top = 4.dp),
@@ -411,8 +411,8 @@ fun AddChargeDialog(
                             Modifier.padding(16.dp).fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                         ) {
-                            Text(Network.title(network), color = TextHi, fontSize = 16.sp)
-                            Text("▾", color = TextMid, fontSize = 16.sp)
+                            Text(Network.title(network), color = TextHi, fontSize = 18.sp)
+                            Text("▾", color = TextMid, fontSize = 18.sp)
                         }
                     }
                     DropdownMenu(expanded = netMenu, onDismissRequest = { netMenu = false }) {
@@ -436,7 +436,7 @@ fun AddChargeDialog(
 
                 Text(
                     "Впиши хотя бы одно: кВт·ч или сумму. Остальное посчитаю по цене.",
-                    color = TextLow, fontSize = 12.sp, modifier = Modifier.padding(bottom = 6.dp),
+                    color = TextLow, fontSize = 15.sp, modifier = Modifier.padding(bottom = 6.dp),
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     NumField("кВт·ч", kwh, { kwh = it }, Modifier.weight(1f))

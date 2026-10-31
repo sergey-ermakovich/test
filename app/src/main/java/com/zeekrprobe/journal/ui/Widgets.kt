@@ -27,7 +27,7 @@ import androidx.compose.ui.unit.sp
 
 /** Colour the charge level takes as it fills: red when low, amber mid, energy-teal when healthy. */
 fun socColor(soc: Float?): Color = when {
-    soc == null -> TextLow
+    soc == null -> NeutralGray
     soc < 15 -> Bad
     soc < 40 -> Amber
     else -> Energy
@@ -42,6 +42,7 @@ fun BatteryArc(
     modifier: Modifier = Modifier,
 ) {
     val color = socColor(soc)
+    val track = Surface2   // read theme colour here; the Canvas lambda is not composable
     Box(modifier = modifier.size(220.dp), contentAlignment = Alignment.Center) {
         Canvas(modifier = Modifier.fillMaxWidth().size(220.dp)) {
             val stroke = 24.dp.toPx()
@@ -50,7 +51,7 @@ fun BatteryArc(
             val topLeft = Offset(inset, inset)
             // Track.
             drawArc(
-                color = Surface2,
+                color = track,
                 startAngle = 135f,
                 sweepAngle = 270f,
                 useCenter = false,
@@ -80,13 +81,13 @@ fun BatteryArc(
             Text(
                 text = if (charging) "⚡ заряжается" else "% заряда",
                 color = if (charging) Energy else TextMid,
-                fontSize = 14.sp,
+                fontSize = 17.sp,
             )
             if (rangeKm != null) {
                 Text(
                     text = "~${rangeKm.toInt()} км запас",
                     color = TextMid,
-                    fontSize = 13.sp,
+                    fontSize = 17.sp,
                     modifier = Modifier.padding(top = 2.dp),
                 )
             }
@@ -117,7 +118,7 @@ fun StatTile(
                 fontSize = 22.sp,
                 modifier = Modifier.padding(top = 8.dp),
             )
-            Text(label, color = TextMid, fontSize = 12.sp)
+            Text(label, color = TextMid, fontSize = 15.sp)
         }
     }
 }
@@ -155,7 +156,7 @@ fun InfoRow(label: String, value: String, valueColor: Color = TextHi) {
         Modifier.fillMaxWidth().padding(vertical = 5.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        Text(label, color = TextMid, fontSize = 14.sp)
-        Text(value, color = valueColor, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+        Text(label, color = TextMid, fontSize = 17.sp)
+        Text(value, color = valueColor, fontSize = 17.sp, fontWeight = FontWeight.Medium)
     }
 }

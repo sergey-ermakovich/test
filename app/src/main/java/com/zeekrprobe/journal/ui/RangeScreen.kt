@@ -92,7 +92,7 @@ fun RangeScreen(
             SectionCard(title = "Запас хода") {
                 Text(
                     "Нет заряда с машины. Открой на заведённом авто — тогда посчитаю запас по твоим поездкам и погоде.",
-                    color = TextMid, fontSize = 14.sp,
+                    color = TextMid, fontSize = 17.sp,
                 )
             }
             return@Column
@@ -101,14 +101,14 @@ fun RangeScreen(
         // Hero: mixed estimate.
         SectionCard {
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("смешанный цикл", color = TextMid, fontSize = 13.sp)
+                Text("смешанный цикл", color = TextMid, fontSize = 17.sp)
                 Row(verticalAlignment = Alignment.Bottom) {
                     Text("≈ ${est.mixedKm}", color = Energy, fontWeight = FontWeight.Bold, fontSize = 56.sp)
                     Text(" км", color = TextMid, fontSize = 20.sp, modifier = Modifier.padding(bottom = 10.dp))
                 }
                 Text(
                     "при расходе ~${f1(est.mixedConsumption)} кВт·ч/100 · ${f0(est.usableKwh)} кВт·ч в батарее",
-                    color = TextMid, fontSize = 13.sp,
+                    color = TextMid, fontSize = 17.sp,
                 )
             }
         }
@@ -169,7 +169,7 @@ fun RangeScreen(
         Spacer(Modifier.height(14.dp))
         Text(
             "Это оценка, а не гарантия: стиль езды, трасса, печка и рельеф влияют. Чем больше поездок запишешь, тем точнее — калькулятор учится на тебе.",
-            color = TextLow, fontSize = 12.sp,
+            color = TextLow, fontSize = 15.sp,
         )
         Spacer(Modifier.height(90.dp))
     }
@@ -180,8 +180,8 @@ private fun ModeTile(label: String, km: Int, accent: Color, modifier: Modifier =
     SectionCard(modifier = modifier) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
             Text("$km", color = accent, fontWeight = FontWeight.Bold, fontSize = 26.sp)
-            Text("км", color = TextMid, fontSize = 11.sp)
-            Text(label, color = TextMid, fontSize = 12.sp, modifier = Modifier.padding(top = 2.dp))
+            Text("км", color = TextMid, fontSize = 15.sp)
+            Text(label, color = TextMid, fontSize = 15.sp, modifier = Modifier.padding(top = 2.dp))
         }
     }
 }
