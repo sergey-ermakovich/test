@@ -40,8 +40,15 @@ android {
     }
 
     buildTypes {
+        // CI builds assembleDebug, so shrink there: R8 strips the ~2000 unused
+        // material-icons-extended vectors and dead code, cutting the APK a lot.
+        getByName("debug") {
+            isMinifyEnabled = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             signingConfig = signingConfigs.getByName("debug")
         }
     }
