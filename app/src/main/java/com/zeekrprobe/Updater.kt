@@ -70,6 +70,12 @@ class Updater(private val context: Context, private val log: (String) -> Unit) {
         -1
     }
 
+    /** Downloads the newest release APK and returns the local file (for in-device ADB install). */
+    fun downloadLatest(): File {
+        val rel = latest() ?: throw java.io.IOException("в релизе нет APK для этого пакета")
+        return download(rel)
+    }
+
     /** Downloads the APK to the app cache and returns the file. */
     private fun download(rel: Release): File {
         // Shared with FileProvider (see file_paths.xml → "updates" → files/updates).

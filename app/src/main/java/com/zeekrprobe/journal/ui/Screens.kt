@@ -178,6 +178,9 @@ fun DashboardScreen(
             color = TextLow, fontSize = 15.sp,
             modifier = Modifier.padding(top = 6.dp),
         )
+        Spacer(Modifier.height(16.dp))
+        AdbCard()
+
         Spacer(Modifier.height(8.dp))
         TextButton(onClick = onOpenProbe) {
             Text("Диагностика машины (ECARX)", color = TextMid)

@@ -73,4 +73,8 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
+
+    // In-device ADB client: connect to the car's own adbd (127.0.0.1:5555) to install APKs
+    // and grant permissions without a laptop. Pulls okio 2.10.0 transitively.
+    implementation("dev.mobile:dadb:1.2.10")
 }
