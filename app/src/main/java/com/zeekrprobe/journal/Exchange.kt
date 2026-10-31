@@ -105,6 +105,17 @@ object Exchange {
         return "Загружено: $name"
     }
 
+    /** Deletes [name] on the server (exchange.php ?del). Returns true on success. */
+    fun delete(name: String): Boolean {
+        val url = withParam("&del=" + URLEncoder.encode(name, "UTF-8"))
+        val conn = (URL(url).openConnection() as HttpURLConnection).apply {
+            connectTimeout = 15000; readTimeout = 20000
+        }
+        val code = conn.responseCode
+        try { conn.inputStream.close() } catch (_: Throwable) {}
+        return code < 400
+    }
+
     /** Names (→ size) already present in the public Downloads folder that this app can see. */
     fun localIndex(context: Context): Map<String, Long> {
         val map = HashMap<String, Long>()

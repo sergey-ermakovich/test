@@ -17,11 +17,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Upload
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
@@ -101,6 +104,19 @@ fun FilesScreen() {
         }
     }
 
+    var pendingDelete by remember { mutableStateOf<RemoteFile?>(null) }
+    fun deleteFile(name: String) {
+        busy = true; status = "Удаляю $name…"
+        scope.launch {
+            val r = withContext(Dispatchers.IO) {
+                try { Result.success(Exchange.delete(name)) } catch (t: Throwable) { Result.failure(t) }
+            }
+            busy = false
+            r.onSuccess { ok -> status = if (ok) "Удалено с сервера: $name" else "Не удалось удалить"; refresh() }
+                .onFailure { status = "Ошибка: ${it.message}" }
+        }
+    }
+
     fun download(name: String) {
         busy = true; status = "Скачиваю $name…"
         scope.launch {
@@ -169,11 +185,31 @@ fun FilesScreen() {
                         Icon(Icons.Rounded.Download, null, tint = tint, modifier = Modifier.size(18.dp))
                         Text(if (downloaded) "  Заново" else "  Скачать", color = tint)
                     }
+                    IconButton(onClick = { pendingDelete = f }, enabled = !busy) {
+                        Icon(Icons.Rounded.Delete, contentDescription = "Удалить с сервера", tint = Bad, modifier = Modifier.size(20.dp))
+                    }
                 }
             }
             Spacer(Modifier.height(10.dp))
         }
         Spacer(Modifier.height(90.dp))
+    }
+
+    pendingDelete?.let { f ->
+        AlertDialog(
+            onDismissRequest = { pendingDelete = null },
+            confirmButton = {
+                TextButton(onClick = { val n = f.name; pendingDelete = null; deleteFile(n) }) {
+                    Text("Удалить", color = Bad)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDelete = null }) { Text("Отмена", color = TextMid) }
+            },
+            title = { Text("Удалить с сервера?") },
+            text = { Text(f.name) },
+            containerColor = Surface1,
+        )
     }
 }
 
