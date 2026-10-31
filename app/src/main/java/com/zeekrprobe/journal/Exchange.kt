@@ -45,14 +45,15 @@ object Exchange {
         }
     }
 
-    /** Downloads [name] into public Downloads. Returns the visible path, or throws. */
-    fun download(context: Context, name: String): String {
+    /** Downloads [name] into public Downloads, reporting percent. Returns the visible path. */
+    fun download(context: Context, name: String, onProgress: (Int) -> Unit = {}): String {
         val url = withParam("&dl=" + URLEncoder.encode(name, "UTF-8"))
         val conn = (URL(url).openConnection() as HttpURLConnection).apply {
             connectTimeout = 15000; readTimeout = 120000
         }
         val code = conn.responseCode
         if (code >= 400) throw java.io.IOException("сервер вернул $code")
+        val total = try { conn.contentLengthLong } catch (_: Throwable) { -1L }
         val values = ContentValues().apply {
             put(MediaStore.Downloads.DISPLAY_NAME, name)
             put(MediaStore.Downloads.MIME_TYPE, guessMime(name))
@@ -61,8 +62,29 @@ object Exchange {
         val resolver = context.contentResolver
         val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
             ?: throw java.io.IOException("не удалось создать файл в «Загрузки»")
-        resolver.openOutputStream(uri)?.use { out -> conn.inputStream.use { it.copyTo(out) } }
+        val os = resolver.openOutputStream(uri)
             ?: throw java.io.IOException("не удалось записать в «Загрузки»")
+        os.use { out ->
+            conn.inputStream.use { input ->
+                val buf = ByteArray(64 * 1024)
+                var read = 0L
+                var lastPct = -1
+                var lastKb = 0L
+                while (true) {
+                    val n = input.read(buf)
+                    if (n < 0) break
+                    out.write(buf, 0, n)
+                    read += n
+                    if (total > 0) {
+                        val p = (read * 100 / total).toInt()
+                        if (p != lastPct) { lastPct = p; onProgress(p) }
+                    } else {
+                        val kb = read / 1024
+                        if (kb - lastKb >= 512) { lastKb = kb; onProgress(-1) }
+                    }
+                }
+            }
+        }
         return "Загрузки/$name"
     }
 

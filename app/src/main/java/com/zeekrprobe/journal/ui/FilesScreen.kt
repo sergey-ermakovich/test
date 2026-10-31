@@ -97,7 +97,11 @@ fun FilesScreen() {
         busy = true; status = "Скачиваю $name…"
         scope.launch {
             val r = withContext(Dispatchers.IO) {
-                try { Result.success(Exchange.download(context, name)) } catch (t: Throwable) { Result.failure(t) }
+                try {
+                    Result.success(Exchange.download(context, name) { p ->
+                        status = if (p >= 0) "Скачиваю $name… $p%" else "Скачиваю $name…"
+                    })
+                } catch (t: Throwable) { Result.failure(t) }
             }
             busy = false
             r.onSuccess { status = "Сохранено: $it" }.onFailure { status = "Ошибка: ${it.message}" }
