@@ -105,6 +105,25 @@ object Exchange {
         return "Загружено: $name"
     }
 
+    /** Names (→ size) already present in the public Downloads folder that this app can see. */
+    fun localIndex(context: Context): Map<String, Long> {
+        val map = HashMap<String, Long>()
+        try {
+            val proj = arrayOf(MediaStore.MediaColumns.DISPLAY_NAME, MediaStore.MediaColumns.SIZE)
+            context.contentResolver.query(
+                MediaStore.Downloads.EXTERNAL_CONTENT_URI, proj, null, null, null,
+            )?.use { c ->
+                val ni = c.getColumnIndexOrThrow(MediaStore.MediaColumns.DISPLAY_NAME)
+                val si = c.getColumnIndexOrThrow(MediaStore.MediaColumns.SIZE)
+                while (c.moveToNext()) {
+                    val nm = c.getString(ni) ?: continue
+                    map[nm] = c.getLong(si)
+                }
+            }
+        } catch (_: Throwable) {}
+        return map
+    }
+
     private fun guessMime(name: String): String = when (name.substringAfterLast('.', "").lowercase()) {
         "apk" -> "application/vnd.android.package-archive"
         "csv" -> "text/csv"

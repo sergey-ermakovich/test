@@ -61,8 +61,16 @@ fun FilesScreen() {
     var url by remember { mutableStateOf(Store.exchangeUrl) }
     var token by remember { mutableStateOf(Store.exchangeToken) }
     var files by remember { mutableStateOf<List<RemoteFile>>(emptyList()) }
+    var local by remember { mutableStateOf<Map<String, Long>>(emptyMap()) }
     var status by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
+
+    fun reloadLocal() {
+        scope.launch {
+            val m = withContext(Dispatchers.IO) { Exchange.localIndex(context) }
+            local = m
+        }
+    }
 
     fun refresh() {
         Store.exchangeUrl = url
@@ -74,7 +82,7 @@ fun FilesScreen() {
                 try { Result.success(Exchange.list()) } catch (t: Throwable) { Result.failure(t) }
             }
             busy = false
-            r.onSuccess { files = it; status = if (it.isEmpty()) "На сервере пусто" else null }
+            r.onSuccess { files = it; status = if (it.isEmpty()) "На сервере пусто" else null; reloadLocal() }
                 .onFailure { status = "Ошибка: ${it.message}" }
         }
     }
@@ -104,11 +112,11 @@ fun FilesScreen() {
                 } catch (t: Throwable) { Result.failure(t) }
             }
             busy = false
-            r.onSuccess { status = "Сохранено: $it" }.onFailure { status = "Ошибка: ${it.message}" }
+            r.onSuccess { status = "Сохранено: $it"; reloadLocal() }.onFailure { status = "Ошибка: ${it.message}" }
         }
     }
 
-    LaunchedEffect(Unit) { if (url.isNotBlank()) refresh() }
+    LaunchedEffect(Unit) { reloadLocal(); if (url.isNotBlank()) refresh() }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
         Spacer(Modifier.height(8.dp))
@@ -145,15 +153,21 @@ fun FilesScreen() {
 
         Spacer(Modifier.height(14.dp))
         files.forEach { f ->
+            val have = local[f.name]
+            val downloaded = have != null && have == f.size
             SectionCard {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text(f.name, color = TextHi, fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
-                        Text(size(f.size), color = TextMid, fontSize = 14.sp)
+                        Row {
+                            Text(size(f.size), color = TextMid, fontSize = 14.sp)
+                            if (downloaded) Text("  · в Загрузках", color = Good, fontSize = 14.sp)
+                        }
                     }
                     TextButton(onClick = { download(f.name) }, enabled = !busy) {
-                        Icon(Icons.Rounded.Download, null, tint = Energy, modifier = Modifier.size(18.dp))
-                        Text("  Скачать", color = Energy)
+                        val tint = if (downloaded) TextMid else Energy
+                        Icon(Icons.Rounded.Download, null, tint = tint, modifier = Modifier.size(18.dp))
+                        Text(if (downloaded) "  Заново" else "  Скачать", color = tint)
                     }
                 }
             }
