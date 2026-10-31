@@ -88,6 +88,14 @@ object Store {
         get() = prefs().getFloat("batteryKwh", 103f).toDouble()
         set(v) { prefs().edit().putFloat("batteryKwh", v.toFloat()).apply() }
 
+    // File exchange (exchange.php) endpoint — base URL and token, edited in the Files screen.
+    var exchangeUrl: String
+        get() = prefs().getString("exchangeUrl", "") ?: ""
+        set(v) { prefs().edit().putString("exchangeUrl", v.trim()).apply() }
+    var exchangeToken: String
+        get() = prefs().getString("exchangeToken", "") ?: ""
+        set(v) { prefs().edit().putString("exchangeToken", v.trim()).apply() }
+
     fun lastPrice(network: String): Double? {
         val v = prefs().getFloat("lastPrice_$network", -1f)
         return if (v > 0) v.toDouble() else null

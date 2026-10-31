@@ -29,6 +29,7 @@ if (!hash_equals(TOKEN, (string)$token)) {
 if (!is_dir($DIR)) @mkdir($DIR, 0775, true);
 
 // Keep a name safe: strip any path, drop leading dots, bound length.
+// (defined before the early JSON/PUT handlers below)
 function safe_name(string $n): string {
     $n = basename($n);
     $n = preg_replace('/[^\w.\- ()\[\]]+/u', '_', $n);
@@ -45,6 +46,29 @@ function human(int $b): string {
 
 $self = htmlspecialchars($_SERVER['PHP_SELF'] ?? 'exchange.php');
 $t = rawurlencode((string)$token);
+
+// --- JSON list (for the in-app file screen) ---------------------------------
+if (isset($_GET['json'])) {
+    header('Content-Type: application/json; charset=utf-8');
+    $out = [];
+    foreach (scandir($DIR) ?: [] as $x) {
+        if ($x === '.' || $x === '..') continue;
+        $p = $DIR . '/' . $x;
+        if (is_file($p)) $out[] = ['name' => $x, 'size' => filesize($p), 'ts' => filemtime($p)];
+    }
+    usort($out, fn($a, $b) => $b['ts'] <=> $a['ts']);
+    echo json_encode($out);
+    exit;
+}
+
+// --- raw upload (simple for the app): POST body -> ?put=<name> ---------------
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_GET['put'])) {
+    $name = safe_name($_GET['put']);
+    $ok = file_put_contents($DIR . '/' . $name, file_get_contents('php://input')) !== false;
+    http_response_code($ok ? 200 : 500);
+    echo $ok ? 'ok' : 'fail';
+    exit;
+}
 
 // --- download ---------------------------------------------------------------
 if (isset($_GET['dl'])) {

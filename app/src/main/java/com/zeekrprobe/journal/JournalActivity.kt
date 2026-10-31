@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Bolt
+import androidx.compose.material.icons.rounded.Folder
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Navigation
 import androidx.compose.material.icons.rounded.Route
@@ -45,6 +46,7 @@ import com.zeekrprobe.journal.ui.TextMid
 import com.zeekrprobe.journal.ui.AddChargeDialog
 import com.zeekrprobe.journal.ui.ChargesScreen
 import com.zeekrprobe.journal.ui.DashboardScreen
+import com.zeekrprobe.journal.ui.FilesScreen
 import com.zeekrprobe.journal.ui.HistoryScreen
 import com.zeekrprobe.journal.ui.RangeScreen
 import kotlinx.coroutines.Dispatchers
@@ -88,6 +90,7 @@ private enum class Tab(val title: String, val icon: ImageVector) {
     CHARGES("Зарядки", Icons.Rounded.Bolt),
     HISTORY("История", Icons.Rounded.Route),
     RANGE("Запас", Icons.Rounded.Navigation),
+    FILES("Файлы", Icons.Rounded.Folder),
 }
 
 @Composable
@@ -193,6 +196,9 @@ private fun AppRoot() {
                     trips = tripRecords,
                     segmentConsumption = stats.consumptionPer100,
                 )
+            }
+            Tab.FILES -> androidx.compose.foundation.layout.Box(inner) {
+                FilesScreen()
             }
         }
     }
